@@ -52,7 +52,7 @@ def fetch_indigo_flights(source_airport_code, destination_airport_code, journey_
         f"/api/v1/flights/searchFlights?sourceAirportCode={source_airport_code}"
         f"&destinationAirportCode={destination_airport_code}&date={journey_date}"
         f"&itineraryType=ONE_WAY&sortOrder=ML_BEST_VALUE&numAdults=1"
-        f"&classOfService=ECONOMY&pageNumber=1&nearby=yes&nonstop=yes&currencyCode=USD&airlines=6E"
+        f"&classOfService=ECONOMY&pageNumber=1&nearby=yes&nonstop=yes&currencyCode=INR&airlines=6E"
     )
     create_table_query = """
         CREATE TABLE IF NOT EXISTS IndigoFlights (
@@ -116,7 +116,7 @@ def fetch_spicejet_flights(source_airport_code, destination_airport_code, journe
         f"/api/v1/flights/searchFlights?sourceAirportCode={source_airport_code}"
         f"&destinationAirportCode={destination_airport_code}&date={journey_date}"
         f"&itineraryType=ONE_WAY&sortOrder=ML_BEST_VALUE&numAdults=1"
-        f"&classOfService=ECONOMY&pageNumber=1&nearby=yes&nonstop=yes&currencyCode=USD&airlines=SG"
+        f"&classOfService=ECONOMY&pageNumber=1&nearby=yes&nonstop=yes&currencyCode=INR&airlines=SG"
     )
     
     create_table_query = """
@@ -191,7 +191,7 @@ def fetch_air_india_flights(source_airport_code, destination_airport_code, journ
         f"/api/v1/flights/searchFlights?sourceAirportCode={source_airport_code}"
         f"&destinationAirportCode={destination_airport_code}&date={journey_date}"
         f"&itineraryType=ONE_WAY&sortOrder=ML_BEST_VALUE&numAdults=1"
-        f"&classOfService=ECONOMY&pageNumber=1&nearby=yes&nonstop=yes&currencyCode=USD&airlines=AI"
+        f"&classOfService=ECONOMY&pageNumber=1&nearby=yes&nonstop=yes&currencyCode=INR&airlines=AI"
     )
     create_table_query = """
         CREATE TABLE IF NOT EXISTS AirIndiaFlights (
