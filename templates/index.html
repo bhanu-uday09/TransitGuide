@@ -3,27 +3,210 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flight Search</title>
+    <title>TransitGuide</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css">
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            scroll-behavior: smooth;
+        }
+        .bg-image {
+            background-image: url('./louis-magnotti-YvCg5X3pWzc-unsplash.jpg'); /* Adjust the path if needed */
+            background-size: cover;
+            background-position: center;
+            height: 100vh;
+            position: relative;
+            color: white;
+        }
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+        }
+        .content {
+            position: relative;
+            top: 50%;
+            transform: translateY(-50%);
+            padding-left: 50px;
+            max-width: 600px;
+        }
+        .content h1 {
+            font-size: 3rem;
+            font-weight: bold;
+        }
+        .content p {
+            font-size: 1.2rem;
+            margin-top: 20px;
+            margin-bottom: 40px;
+        }
+        .content .btn {
+            background-color: #ffcc33;
+            color: #333;
+            border: none;
+            font-weight: bold;
+            padding: 10px 20px;
+            font-size: 1.1rem;
+        }
+        .search-box {
+            position: absolute;
+            right: 10%;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: white;
+            padding: 20px;
+            width: 300px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+        .search-box h5 {
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .search-box .btn {
+            background-color: #ffcc33;
+            color: #333;
+            font-weight: bold;
+        }
+        .navbar-custom {
+            background-color: rgba(0, 0, 0, 0.6);
+        }
+        .navbar-custom .navbar-nav .nav-link {
+            color: white;
+            font-weight: bold;
+            margin-right: 20px;
+        }
+        .navbar-custom .navbar-brand {
+            color: #ffcc33;
+            font-weight: bold;
+        }
+        .footer {
+            background-color: #333;
+            color: white;
+            padding: 30px 0;
+            text-align: center;
+        }
+        .footer p {
+            margin: 0;
+        }
+        .text-black {
+        color: black;
+        }
+    </style>
 </head>
 <body>
-    <div class="container mt-5">
-        <h1 class="text-center">Flight Search</h1>
-        <form method="POST" action="/">
-            <div class="mb-3">
-                <label for="source_city" class="form-label">Source City</label>
-                <input type="text" class="form-control" id="source_city" name="source_city" required>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="#">TransitGuide</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#about-section">About</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Packages</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Hotels</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#about-section">Contact</a>
+                    </li>
+                </ul>
             </div>
-            <div class="mb-3">
-                <label for="destination_city" class="form-label">Destination City</label>
-                <input type="text" class="form-control" id="destination_city" name="destination_city" required>
-            </div>
-            <div class="mb-3">
-                <label for="journey_date" class="form-label">Journey Date</label>
-                <input type="date" class="form-control" id="journey_date" name="journey_date" required>
-            </div>
-            <button type="submit" class="btn btn-primary">Search Flights</button>
-        </form>
+        </div>
+    </nav>
+
+    <div class="bg-image">
+        <div class="overlay"></div>
+        <div class="content">
+            <h1>TRANSIT GUIDE</h1>
+            <p>Discover the most efficient routes, avoid delays, and get real-time updates to make your journey smoother and stress-free.</p>
+            <button class="btn">Get Started</button>
+        </div>
+        <div class="search-box">
+            <h5 class="text-black">Search Flights</h5>
+            <form method="POST" action="/">
+                <div class="mb-3">
+                    <input type="text" placeholder="From" class="form-control" id="source_city" name="source_city" required>
+                </div>
+                <div class="mb-3">
+                    <input type="text" placeholder="To" class="form-control" id="destination_city" name="destination_city" required>
+                </div>
+                <div class="mb-3">
+                    <input type="date" class="form-control" name="journey_date" placeholder="Start" id="journey_date" required>
+                </div>
+                <button type="submit" class="btn w-100">Search Flights</button>
+            </form>
+        </div>
     </div>
+
+    <!-- Footer Section -->
+    <footer class="text-center text-lg-start text-white" id="about-section" style="background-color: #1f1f3dd5;">
+        <div class="container p-4 pb-0">
+            <div class="row">
+                <!-- Company Info Column -->
+                <div class="col-md-3 col-lg-3 col-xl-3 mx-auto mt-3">
+                    <h6 class="text-uppercase mb-4 font-weight-bold">TransitGuide</h6>
+                    <p>Your go-to platform for seamless flight searches. With real-time availability, best deals, and a user-friendly experience, TransitGuide helps you reach your destination faster and easier.</p>
+                </div>
+    
+                <!-- Products Column -->
+                <div class="col-md-2 col-lg-2 col-xl-2 mx-auto mt-3">
+                    <h6 class="text-uppercase mb-4 font-weight-bold">Services</h6>
+                    <p><a href="#" class="text-white">Search Flights</a></p>
+                    <p><a href="#" class="text-white">Best Fare Finder</a></p>
+                    <p><a href="#" class="text-white">Booking Assistance</a></p>
+                    <p><a href="#" class="text-white">Travel Updates</a></p>
+                </div>
+    
+                <!-- Useful Links Column -->
+                <div class="col-md-3 col-lg-2 col-xl-2 mx-auto mt-3">
+                    <h6 class="text-uppercase mb-4 font-weight-bold">Useful Links</h6>
+                    <p><a href="#" class="text-white">Your Account</a></p>
+                    <p><a href="#" class="text-white">Support</a></p>
+                    <p><a href="#" class="text-white">Terms of Service</a></p>
+                    <p><a href="#" class="text-white">Privacy Policy</a></p>
+                </div>
+    
+                <!-- Contact Column -->
+                <div class="col-md-4 col-lg-3 col-xl-3 mx-auto mt-3">
+                    <h6 class="text-uppercase mb-4 font-weight-bold">Contact</h6>
+                    <p><i class="fas fa-home mr-3"></i> Old Boys Hostel, IIIT Delhi, Delhi IN</p>
+                    <p><i class="fas fa-envelope mr-3"></i> support@transitguide.com</p>
+                    <p><i class="fas fa-phone mr-3"></i> +1 234 567 890</p>
+                </div>
+            </div>
+    
+            <hr class="my-3">
+    
+            <!-- Social Media and Copyright -->
+            <div class="row d-flex align-items-center">
+                <div class="col-md-7 col-lg-8 text-center text-md-start">
+                    <div class="p-3">
+                        &copy; 2024 TransitGuide. All rights reserved.
+                    </div>
+                </div>
+                <div class="col-md-5 col-lg-4 ml-lg-0 text-center text-md-end">
+                    <a href="#" class="btn btn-outline-light btn-floating m-1" role="button"><i class="fab fa-facebook-f"></i></a>
+                    <a href="#" class="btn btn-outline-light btn-floating m-1" role="button"><i class="fab fa-twitter"></i></a>
+                    <a href="#" class="btn btn-outline-light btn-floating m-1" role="button"><i class="fab fa-google"></i></a>
+                    <a href="#" class="btn btn-outline-light btn-floating m-1" role="button"><i class="fab fa-instagram"></i></a>
+                </div>
+            </div>
+        </div>
+    </footer>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
