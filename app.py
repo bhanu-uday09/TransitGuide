@@ -21,6 +21,7 @@ def index():
         source_city = request.form["source_city"]
         destination_city = request.form["destination_city"]
         journey_date = request.form["journey_date"]
+        
 
         # Fetch airport codes
         source_code = get_airport_code(source_city)

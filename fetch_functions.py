@@ -1,26 +1,26 @@
 import http.client
 import json
 from datetime import datetime
-from config import get_db_connection
+from config import get_indigo_db_connection, get_airindia_db_connection, get_spicejet_db_connection
+
+import pandas as pd
+
+# Load the CSV data into a DataFrame
+airport_df = pd.read_csv('assets/airport_data.csv', usecols=['city', 'airport_code'])
 
 def get_airport_code(city):
     try:
-        conn = get_db_connection()
-        with conn.cursor() as cur:
-            cur.execute("SELECT airport_code FROM AirportData WHERE city = %s LIMIT 1", (city,))
-            result = cur.fetchone()
-        return result[0] if result else None
+        # Filter the DataFrame to find the airport code for the given city
+        result = airport_df[airport_df['city'].str.lower() == city.lower()]['airport_code']
+        return result.iloc[0] if not result.empty else None
     except Exception as e:
         print(f"Error fetching airport code for {city}: {e}")
         return None
-    finally:
-        if conn:
-            conn.close()
 
 def make_api_request(endpoint):
     conn = http.client.HTTPSConnection("tripadvisor16.p.rapidapi.com")
     headers = {
-        'x-rapidapi-key': "139be57d39msh8396d6c2824a3e8p155bc8jsn25b210898778",
+        'x-rapidapi-key': "50689ccaf0msh3ccdffedc7edf0ep166af2jsnc2535a7c72bf",
         'x-rapidapi-host': "tripadvisor16.p.rapidapi.com"
     }
 
@@ -31,20 +31,6 @@ def make_api_request(endpoint):
     data = res.read()
     return json.loads(data.decode("utf-8"))
 
-def ensure_table_exists(create_table_query):
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute(f"SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = %s);", 
-                    (create_table_query.split()[5].lower(),))
-        if not cur.fetchone()[0]:
-            print("Creating table...")
-            cur.execute(create_table_query)
-            conn.commit()
-        cur.close()
-        conn.close()
-    except Exception as e:
-        print(f"Error ensuring table exists: {str(e)}")
 
 # 1. Indigo Flights Function
 def fetch_indigo_flights(source_airport_code, destination_airport_code, journey_date):
@@ -66,7 +52,19 @@ def fetch_indigo_flights(source_airport_code, destination_airport_code, journey_
             class VARCHAR(20)
         );
     """
-    ensure_table_exists(create_table_query)
+    try:
+        conn = get_indigo_db_connection()
+        cur = conn.cursor()
+        cur.execute(f"SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = %s);", 
+                    (create_table_query.split()[5].lower(),))
+        if not cur.fetchone()[0]:
+            print("Creating table...")
+            cur.execute(create_table_query)
+            conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error ensuring table exists: {str(e)}")
 
     response = make_api_request(api_endpoint)
     flights = response.get("data", {}).get("flights", [])
@@ -76,7 +74,7 @@ def fetch_indigo_flights(source_airport_code, destination_airport_code, journey_
         return
 
     try:
-        conn = get_db_connection()
+        conn = get_indigo_db_connection()
         cur = conn.cursor()
         insert_query = """
             INSERT INTO IndigoFlights (
@@ -135,7 +133,19 @@ def fetch_spicejet_flights(source_airport_code, destination_airport_code, journe
             seat_availability VARCHAR(50)
         );
     """
-    ensure_table_exists(create_table_query)
+    try:
+        conn = get_spicejet_db_connection()
+        cur = conn.cursor()
+        cur.execute(f"SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = %s);", 
+                    (create_table_query.split()[5].lower(),))
+        if not cur.fetchone()[0]:
+            print("Creating table...")
+            cur.execute(create_table_query)
+            conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error ensuring table exists: {str(e)}")
 
     print(api_endpoint)
     response = make_api_request(api_endpoint)
@@ -146,7 +156,7 @@ def fetch_spicejet_flights(source_airport_code, destination_airport_code, journe
         return
 
     try:
-        conn = get_db_connection()
+        conn = get_spicejet_db_connection()
         cur = conn.cursor()
         insert_query = """
             INSERT INTO SpiceJetFlights (
@@ -208,7 +218,19 @@ def fetch_air_india_flights(source_airport_code, destination_airport_code, journ
             cancellation_policy TEXT
         );
     """
-    ensure_table_exists(create_table_query)
+    try:
+        conn = get_airindia_db_connection()
+        cur = conn.cursor()
+        cur.execute(f"SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = %s);", 
+                    (create_table_query.split()[5].lower(),))
+        if not cur.fetchone()[0]:
+            print("Creating table...")
+            cur.execute(create_table_query)
+            conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error ensuring table exists: {str(e)}")
 
     response = make_api_request(api_endpoint)
     flights = response.get("data", {}).get("flights", [])
@@ -218,7 +240,7 @@ def fetch_air_india_flights(source_airport_code, destination_airport_code, journ
         return
 
     try:
-        conn = get_db_connection()
+        conn = get_airindia_db_connection()
         cur = conn.cursor()
         insert_query = """
             INSERT INTO AirIndiaFlights (
