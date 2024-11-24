@@ -2,6 +2,7 @@ import http.client
 import json
 from datetime import datetime
 from config import get_indigo_db_connection, get_airindia_db_connection, get_spicejet_db_connection
+
 import pandas as pd
 
 # Load the CSV data into a DataFrame
@@ -19,7 +20,7 @@ def get_airport_code(city):
 def make_api_request(endpoint):
     conn = http.client.HTTPSConnection("tripadvisor16.p.rapidapi.com")
     headers = {
-        'x-rapidapi-key': "50689ccaf0msh3ccdffedc7edf0ep166af2jsnc2535a7c72bf",
+        'x-rapidapi-key': "2ea89f2327msh9beac03b77cbc80p126ef2jsn1f76a38ef4c2",
         'x-rapidapi-host': "tripadvisor16.p.rapidapi.com"
     }
 
@@ -30,61 +31,15 @@ def make_api_request(endpoint):
     data = res.read()
     return json.loads(data.decode("utf-8"))
 
-def ensure_table_exists(conn_func, table_name, create_table_query):
-    """Ensure the table exists in the database."""
-    try:
-        conn = conn_func()
-        cur = conn.cursor()
-        cur.execute(f"SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = %s);", (table_name.lower(),))
-        if not cur.fetchone()[0]:
-            print(f"Creating table {table_name}...")
-            cur.execute(create_table_query)
-            conn.commit()
-        cur.close()
-        conn.close()
-    except Exception as e:
-        print(f"Error ensuring table {table_name} exists: {str(e)}")
 
-def fetch_flight_data(api_endpoint):
-    """Fetch flight data from the API."""
-    response = make_api_request(api_endpoint)
-    return response.get("data", {}).get("flights", [])
-
-def insert_flight_data(conn_func, insert_query, flights, parse_function):
-    """Insert flight data into the database."""
-    if not flights:
-        print("No flights found.")
-        return
-
-    try:
-        conn = conn_func()
-        cur = conn.cursor()
-
-        for flight in flights:
-            for segment in flight["segments"]:
-                for leg in segment["legs"]:
-                    values = parse_function(flight, leg)
-                    if values:
-                        # Debug: Print values to verify structure
-                        print(f"Inserting values: {values}")
-                        cur.execute(insert_query, values)
-
-        conn.commit()
-        cur.close()
-        conn.close()
-        print("Data inserted successfully.")
-    except Exception as e:
-        print(f"Error inserting data: {str(e)}")
-
-# IndiGo Airline Functions
-def handle_indigo_flights(source_code, destination_code, journey_date):
+# 1. Indigo Flights Function
+def fetch_indigo_flights(source_airport_code, destination_airport_code, journey_date):
     api_endpoint = (
-        f"/api/v1/flights/searchFlights?sourceAirportCode={source_code}"
-        f"&destinationAirportCode={destination_code}&date={journey_date}"
+        f"/api/v1/flights/searchFlights?sourceAirportCode={source_airport_code}"
+        f"&destinationAirportCode={destination_airport_code}&date={journey_date}"
         f"&itineraryType=ONE_WAY&sortOrder=ML_BEST_VALUE&numAdults=1"
         f"&classOfService=ECONOMY&pageNumber=1&nearby=yes&nonstop=yes&currencyCode=INR&airlines=6E"
     )
-    table_name = "IndigoFlights"
     create_table_query = """
         CREATE TABLE IF NOT EXISTS IndigoFlights (
             id SERIAL PRIMARY KEY,
@@ -97,38 +52,71 @@ def handle_indigo_flights(source_code, destination_code, journey_date):
             class VARCHAR(20)
         );
     """
-    insert_query = """
-        INSERT INTO IndigoFlights (
-            source, destination, flight_number, 
-            departure_date, arrival_time, fare, 
-            class
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-    """
+    try:
+        conn = get_indigo_db_connection()
+        cur = conn.cursor()
+        cur.execute(f"SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = %s);", 
+                    (create_table_query.split()[5].lower(),))
+        if not cur.fetchone()[0]:
+            print("Creating table...")
+            cur.execute(create_table_query)
+            conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error ensuring table exists: {str(e)}")
 
-    def parse_indigo_flight(flight, leg):
-        return (
-            leg.get("originStationCode", ""),
-            leg.get("destinationStationCode", ""),
-            leg.get("flightNumber", ""),
-            datetime.fromisoformat(leg.get("departureDateTime", datetime.now().isoformat())),
-            datetime.fromisoformat(leg.get("arrivalDateTime", datetime.now().isoformat())),
-            flight["purchaseLinks"][0].get("totalPricePerPassenger", 0.0),
-            leg.get("classOfService", "ECONOMY")
-        )
+    response = make_api_request(api_endpoint)
+    flights = response.get("data", {}).get("flights", [])
 
-    ensure_table_exists(get_indigo_db_connection, table_name, create_table_query)
-    flights = fetch_flight_data(api_endpoint)
-    insert_flight_data(get_indigo_db_connection, insert_query, flights, parse_indigo_flight)
+    if not flights:
+        print("No flights found for Indigo.")
+        return
 
-# SpiceJet Airline Functions
-def handle_spicejet_flights(source_code, destination_code, journey_date):
+    try:
+        conn = get_indigo_db_connection()
+        cur = conn.cursor()
+        insert_query = """
+            INSERT INTO IndigoFlights (
+                source, destination, flight_number, 
+                departure_date, arrival_time, fare, 
+                class
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """
+
+        for flight in flights:
+            for segment in flight["segments"]:
+                for leg in segment["legs"]:
+                    values = (
+                        leg.get("originStationCode", ""),
+                        leg.get("destinationStationCode", ""),
+                        leg.get("flightNumber", ""),
+                        datetime.fromisoformat(leg.get("departureDateTime", datetime.now().isoformat())),
+                        datetime.fromisoformat(leg.get("arrivalDateTime", datetime.now().isoformat())),
+                        flight["purchaseLinks"][0].get("totalPricePerPassenger", 0.0),
+                        leg.get("classOfService", "ECONOMY")
+                    )
+
+                    # Debug: Print values to check structure before inserting
+                    print(f"Inserting values into IndigoFlights: {values}")
+                    cur.execute(insert_query, values)
+
+        conn.commit()
+        cur.close()
+        conn.close()
+        print("Data inserted successfully into IndigoFlights.")
+    except Exception as e:
+        print(f"Error inserting data into IndigoFlights: {str(e)}")
+
+# 2. SpiceJet Flights Function
+def fetch_spicejet_flights(source_airport_code, destination_airport_code, journey_date):
     api_endpoint = (
-        f"/api/v1/flights/searchFlights?sourceAirportCode={source_code}"
-        f"&destinationAirportCode={destination_code}&date={journey_date}"
+        f"/api/v1/flights/searchFlights?sourceAirportCode={source_airport_code}"
+        f"&destinationAirportCode={destination_airport_code}&date={journey_date}"
         f"&itineraryType=ONE_WAY&sortOrder=ML_BEST_VALUE&numAdults=1"
         f"&classOfService=ECONOMY&pageNumber=1&nearby=yes&nonstop=yes&currencyCode=INR&airlines=SG"
     )
-    table_name = "SpiceJetFlights"
+    
     create_table_query = """
         CREATE TABLE IF NOT EXISTS SpiceJetFlights (
             id SERIAL PRIMARY KEY,
@@ -137,41 +125,84 @@ def handle_spicejet_flights(source_code, destination_code, journey_date):
             flight_number VARCHAR(10),
             departure_date TIMESTAMP,
             arrival_time TIMESTAMP,
+            aircraft_type VARCHAR(50),
+            duration INT,
             fare DECIMAL,
-            class VARCHAR(20)
+            class VARCHAR(20),
+            baggage_allowance VARCHAR(50),
+            seat_availability VARCHAR(50)
         );
     """
-    insert_query = """
-        INSERT INTO SpiceJetFlights (
-            source_city, destination_city, flight_number, 
-            departure_date, arrival_time, fare, class
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-    """
+    try:
+        conn = get_spicejet_db_connection()
+        cur = conn.cursor()
+        cur.execute(f"SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = %s);", 
+                    (create_table_query.split()[5].lower(),))
+        if not cur.fetchone()[0]:
+            print("Creating table...")
+            cur.execute(create_table_query)
+            conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error ensuring table exists: {str(e)}")
 
-    def parse_spicejet_flight(flight, leg):
-        return (
-            leg.get("originStationCode", ""),
-            leg.get("destinationStationCode", ""),
-            leg.get("flightNumber", ""),
-            datetime.fromisoformat(leg.get("departureDateTime", datetime.now().isoformat())),
-            datetime.fromisoformat(leg.get("arrivalDateTime", datetime.now().isoformat())),
-            flight["purchaseLinks"][0].get("totalPricePerPassenger", 0.0),
-            leg.get("classOfService", "ECONOMY")
-        )
+    print(api_endpoint)
+    response = make_api_request(api_endpoint)
+    flights = response.get("data", {}).get("flights", [])
 
-    ensure_table_exists(get_spicejet_db_connection, table_name, create_table_query)
-    flights = fetch_flight_data(api_endpoint)
-    insert_flight_data(get_spicejet_db_connection, insert_query, flights, parse_spicejet_flight)
+    if not flights:
+        print("No flights found for SpiceJet.")
+        return
 
-# AirIndia Airline Functions
-def handle_air_india_flights(source_code, destination_code, journey_date):
+    try:
+        conn = get_spicejet_db_connection()
+        cur = conn.cursor()
+        insert_query = """
+            INSERT INTO SpiceJetFlights (
+                source_city, destination_city, flight_number, 
+                departure_date, arrival_time, aircraft_type, 
+                duration, fare, class, baggage_allowance, 
+                seat_availability
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+
+        for flight in flights:
+            for segment in flight["segments"]:
+                for leg in segment["legs"]:
+                    values = (
+                        leg.get("originStationCode", ""),
+                        leg.get("destinationStationCode", ""),
+                        leg.get("flightNumber", ""),
+                        datetime.fromisoformat(leg.get("departureDateTime", datetime.now().isoformat())),
+                        datetime.fromisoformat(leg.get("arrivalDateTime", datetime.now().isoformat())),
+                        leg.get("aircraftType", "Unknown"),
+                        leg.get("durationMinutes", 0),
+                        flight["purchaseLinks"][0].get("totalPricePerPassenger", 0.0),
+                        leg.get("classOfService", "ECONOMY"),
+                        leg.get("baggageAllowance", "Not Available"),
+                        leg.get("seatAvailability", "Not Available")
+                    )
+                    
+                    # Debug: Print the values to confirm structure
+                    print(f"Inserting values into SpiceJetFlights: {values}")
+                    cur.execute(insert_query, values)
+
+        conn.commit()
+        cur.close()
+        conn.close()
+        print("Data inserted successfully into SpiceJetFlights.")
+    except Exception as e:
+        print(f"Error inserting data into SpiceJetFlights: {str(e)}")
+
+# 3. Air India Flights Function
+def fetch_air_india_flights(source_airport_code, destination_airport_code, journey_date):
     api_endpoint = (
-        f"/api/v1/flights/searchFlights?sourceAirportCode={source_code}"
-        f"&destinationAirportCode={destination_code}&date={journey_date}"
+        f"/api/v1/flights/searchFlights?sourceAirportCode={source_airport_code}"
+        f"&destinationAirportCode={destination_airport_code}&date={journey_date}"
         f"&itineraryType=ONE_WAY&sortOrder=ML_BEST_VALUE&numAdults=1"
         f"&classOfService=ECONOMY&pageNumber=1&nearby=yes&nonstop=yes&currencyCode=INR&airlines=AI"
     )
-    table_name = "AirIndiaFlights"
     create_table_query = """
         CREATE TABLE IF NOT EXISTS AirIndiaFlights (
             id SERIAL PRIMARY KEY,
@@ -180,30 +211,68 @@ def handle_air_india_flights(source_code, destination_code, journey_date):
             flight_no VARCHAR(10),
             departure_timestamp TIMESTAMP,
             arrival_timestamp TIMESTAMP,
+            flight_duration INT,
             fare DECIMAL,
-            travel_class VARCHAR(20)
+            travel_class VARCHAR(20),
+            meal_option BOOLEAN,
+            cancellation_policy TEXT
         );
     """
-    insert_query = """
-        INSERT INTO AirIndiaFlights (
-            origin_airport, destination_airport, flight_no, 
-            departure_timestamp, arrival_timestamp, fare, 
-            travel_class
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-    """
+    try:
+        conn = get_airindia_db_connection()
+        cur = conn.cursor()
+        cur.execute(f"SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = %s);", 
+                    (create_table_query.split()[5].lower(),))
+        if not cur.fetchone()[0]:
+            print("Creating table...")
+            cur.execute(create_table_query)
+            conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error ensuring table exists: {str(e)}")
 
-    def parse_air_india_flight(flight, leg):
-        return (
-            leg.get("originStationCode", ""),
-            leg.get("destinationStationCode", ""),
-            leg.get("flightNumber", ""),
-            datetime.fromisoformat(leg.get("departureDateTime", datetime.now().isoformat())),
-            datetime.fromisoformat(leg.get("arrivalDateTime", datetime.now().isoformat())),
-            flight["purchaseLinks"][0].get("totalPricePerPassenger", 0.0),
-            leg.get("classOfService", "ECONOMY")
-        )
+    response = make_api_request(api_endpoint)
+    flights = response.get("data", {}).get("flights", [])
 
-    ensure_table_exists(get_airindia_db_connection, table_name, create_table_query)
-    flights = fetch_flight_data(api_endpoint)
-    insert_flight_data(get_airindia_db_connection, insert_query, flights, parse_air_india_flight)
-    
+    if not flights:
+        print("No flights found for Air India.")
+        return
+
+    try:
+        conn = get_airindia_db_connection()
+        cur = conn.cursor()
+        insert_query = """
+            INSERT INTO AirIndiaFlights (
+                origin_airport, destination_airport, flight_no, 
+                departure_timestamp, arrival_timestamp, flight_duration, 
+                fare, travel_class, meal_option, cancellation_policy
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+
+        for flight in flights:
+            for segment in flight["segments"]:
+                for leg in segment["legs"]:
+                    values = (
+                        leg.get("originStationCode", ""),
+                        leg.get("destinationStationCode", ""),
+                        leg.get("flightNumber", ""),
+                        datetime.fromisoformat(leg.get("departureDateTime", datetime.now().isoformat())),
+                        datetime.fromisoformat(leg.get("arrivalDateTime", datetime.now().isoformat())),
+                        leg.get("durationMinutes", 0),
+                        flight["purchaseLinks"][0].get("totalPricePerPassenger", 0.0),
+                        leg.get("classOfService", "ECONOMY"),
+                        leg.get("mealOption", False),
+                        flight.get("cancellationPolicy", "No policy available")
+                    )
+                    cur.execute(insert_query, values)
+
+        conn.commit()
+        cur.close()
+        conn.close()
+        print("Data inserted successfully into AirIndiaFlights.")
+    except Exception as e:
+        print(f"Error inserting data into AirIndiaFlights: {str(e)}")
+        
+        
+        

@@ -3,7 +3,6 @@ import json
 from datetime import datetime
 from config import get_indigo_db_connection,get_airindia_db_connection,get_spicejet_db_connection
 
-
 def fetch_indigo_flights(source_airport_code, destination_airport_code, journey_date):
     conn = http.client.HTTPSConnection("booking-com15.p.rapidapi.com")
     
@@ -12,6 +11,7 @@ def fetch_indigo_flights(source_airport_code, destination_airport_code, journey_
         'x-rapidapi-host': "booking-com15.p.rapidapi.com"
     }
 
+    # API endpoint for Booking.com-IndiGo
     api_endpoint = (
         f"/api/v1/flights/searchFlights?"
         f"fromId={source_airport_code}.AIRPORT&toId={destination_airport_code}.AIRPORT&departDate={journey_date}"
@@ -93,7 +93,7 @@ def fetch_air_india_flights(source_airport_code, destination_airport_code, journ
         'x-rapidapi-host': "sky-scanner3.p.rapidapi.com"
     }
 
-    # Construct the API endpoint for the new request format
+    # API endpoint for Sky-Scanner-AirIndia
     api_endpoint = (
         f"/flights/search-one-way?"
         f"fromEntityId={source_airport_code}&toEntityId={destination_airport_code}"
@@ -173,7 +173,7 @@ def fetch_spicejet_flights(source_airport_code, destination_airport_code, journe
         'x-rapidapi-host': "tripadvisor16.p.rapidapi.com"
     }
 
-    # Construct the API endpoint for the new request format
+    # API endpoint for Trip-Advisor-SpiceJet
     api_endpoint = (
         f"/api/v1/flights/searchFlights?"
         f"sourceAirportCode={source_airport_code}&destinationAirportCode={destination_airport_code}"
