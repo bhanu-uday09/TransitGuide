@@ -274,5 +274,3 @@ def fetch_air_india_flights(source_airport_code, destination_airport_code, journ
     except Exception as e:
         print(f"Error inserting data into AirIndiaFlights: {str(e)}")
         
-        
-        
