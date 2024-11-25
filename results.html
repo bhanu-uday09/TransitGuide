@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flight Results</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            scroll-behavior: smooth;
+        }
+
+        .flight-card {
+            background-color: whitesmoke;
+            border: none;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            color: black; /* Ensure all text inside is black */
+        }
+
+        .flight-card h5,
+        .flight-card p,
+        .flight-card small {
+            color: black; /* Explicitly set text color to black */
+        }
+
+        .flight-card .price {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: black; /* Ensure price text is also black */
+        }
+
+        .flight-card .btn-select {
+            background-color: #1d3557;
+            color: white;
+            font-weight: bold;
+        }
+
+        .flight-card .btn-select:hover {
+            background-color: #457b9d;
+        }
+
+        .bg-footer-image {
+            background-image: url('https://img.freepik.com/free-photo/top-view-airplane-with-copy-space_23-2148608798.jpg');
+            background-size: cover;
+            background-position: center;
+            height: 100vh;
+            position: relative;
+        }
+
+        .bg-footer-image .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .bg-footer-image .text-center {
+            position: relative;
+            z-index: 2;
+        }
+        .navbar-custom {
+            background-color: rgba(0, 0, 0, 0.6);
+        }
+        .navbar-custom .navbar-nav .nav-link {
+            color: white;
+            font-weight: bold;
+            margin-right: 20px;
+        }
+        .navbar-custom .navbar-brand {
+            color: #ffcc33;
+            font-weight: bold;
+        }
+        .footer {
+            background-color: #333;
+            color: white;
+            padding: 30px 0;
+            text-align: center;
+        }
+        .footer p {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="#">TransitGuide</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#about-section">About</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Packages</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Hotels</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#about-section">Contact</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <script>
+        async function getAirportCode(cityName) {
+            try {
+                const response = await fetch(`/api/getAirportCode?city_name=${encodeURIComponent(cityName)}`);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch airport code for ${cityName}: ${response.statusText}`);
+                }
+                const data = await response.json();
+                if (data.error) {
+                    console.error(data.error);
+                    return null;
+                }
+                return `${data.airport_code} - ${data.city_name}`;
+            } catch (error) {
+                console.error(`Error fetching airport code for ${cityName}:`, error.message);
+                return null;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async function () {
+            const params = new URLSearchParams(window.location.search);
+            const sourceCity = params.get('source_city');
+            const destinationCity = params.get('destination_city');
+            const journeyDate = params.get('journey_date');
+
+            try {
+                // Validate source and destination city inputs
+                if (!sourceCity || !destinationCity || !journeyDate) {
+                    console.error('Missing required input parameters.');
+                    alert('Please provide valid source city, destination city, and journey date.');
+                    return;
+                }
+
+                // Fetch airport codes for the source and destination cities
+                const source = await getAirportCode(sourceCity);
+                const destination = await getAirportCode(destinationCity);
+
+                if (!source || !destination) {
+                    console.error('Unable to fetch airport codes for the provided cities.');
+                    alert('Failed to fetch airport details. Please check the input cities.');
+                    return;
+                }
+
+                // Update input fields with formatted strings for display
+                document.querySelector('#source_city').value = source;
+                document.querySelector('#destination_city').value = destination;
+                document.querySelector('#journey_date').value = journeyDate;
+
+                // Construct the API request for fetching flights
+                const apiUrl = `/api/flights?source_city=${encodeURIComponent(source.split(' - ')[0])}&destination_city=${encodeURIComponent(destination.split(' - ')[0])}&journey_date=${encodeURIComponent(journeyDate)}`;
+                
+                // Fetch flight data from the API
+                const response = await fetch(apiUrl);
+
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch flights: ${response.statusText}`);
+                }
+
+                // Parse and display flight data
+                const flightsData = await response.json();
+                displayFlights(flightsData);
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('results-list').innerHTML = `<p>Error fetching flights: ${error.message}</p>`;
+            }
+        });
+    </script>
+    
+    <div class="bg-footer-image">
+        <div class="overlay"></div>
+        <div class="text-center text-white py-5">
+
+            <div class="container my-4">
+                <!-- Search Bar -->
+                <div class="d-flex align-items-center justify-content-between mt-3">
+                    <!-- Source -->
+                    <div class="input-group me-2">
+                        <span class="input-group-text"><i class="fas fa-plane-departure"></i></span>
+                        <input type="text" class="form-control" id="source_city" placeholder="Source City">
+                    </div>
+
+                    <!-- Destination -->
+                    <div class="input-group me-2">
+                        <span class="input-group-text"><i class="fas fa-plane-arrival"></i></span>
+                        <input type="text" class="form-control" id="destination_city" placeholder="Destination City">
+                    </div>
+
+                    <!-- Travel Date -->
+                    <div class="input-group me-2">
+                        <span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
+                        <input type="date" class="form-control" id="journey_date">
+                    </div>
+                    
+                    <!-- Search Button -->
+                    <button class="btn btn-primary">Search</button>
+                </div>
+                <!-- Sort Filter -->
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <!-- Airline Selection -->
+                    <div class="input-group" style="flex: 1;">
+                        <label class="input-group-text" for="airlineDropdown"><i class="fas fa-plane"></i></label>
+                        <select class="form-select" id="airlineDropdown">
+                            <option selected>Select Airline</option>
+                            <option value="IndiGo">IndiGo</option>
+                            <option value="AirIndia">AirIndia</option>
+                            <option value="SpiceJet">SpiceJet</option>
+                        </select>
+                    </div>
+                    <!-- Spacer -->
+                    <div style="flex: 1.5;"></div>
+                    <!-- Sort Options -->
+                    <div class="input-group" style="flex: 1;">
+                        <label class="input-group-text" for="sortDropdown"><i class="fas fa-sort"></i></label>
+                        <select class="form-select" id="sortDropdown">
+                            <option selected>Sort by</option>
+                            <option value="Cheapest">Price</option>
+                            <option value="Quickest">Duration</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="flight-results" class="container mt-3" style="max-height: 600px; width: 66.66%; align-items: start; overflow-y: auto; border-radius: 10px;">
+                <div id="results-list" class="container mt-3">
+                    <!-- Flight Card Template -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async function () {
+            // Global variables
+            let flightData = []; // Store fetched flight data globally
+
+            // Parse URL parameters
+            const params = new URLSearchParams(window.location.search);
+            const sourceCity = params.get('source_city');
+            const destinationCity = params.get('destination_city');
+            const journeyDate = params.get('journey_date');
+
+            // Get DOM elements
+            const resultsList = document.getElementById('results-list');
+            const airlineDropdown = document.getElementById('airlineDropdown');
+            const sortDropdown = document.getElementById('sortDropdown');
+
+            // Debug logs to confirm data flow
+            console.log('Source City:', sourceCity);
+            console.log('Destination City:', destinationCity);
+            console.log('Journey Date:', journeyDate);
+
+            // Ensure parameters exist
+            if (!sourceCity || !destinationCity || !journeyDate) {
+                resultsList.innerHTML = `<p>Missing required parameters in the URL.</p>`;
+                return;
+            }
+
+            /**
+             * Fetch flights from the API based on provided parameters.
+             */
+            async function fetchFlights() {
+                try {
+                    // Construct the API URL
+                    const apiUrl = `/api/flights?source_city=${encodeURIComponent(sourceCity)}&destination_city=${encodeURIComponent(destinationCity)}&journey_date=${encodeURIComponent(journeyDate)}`;
+                    console.log('Fetching from API:', apiUrl);
+
+                    // Fetch data
+                    const response = await fetch(apiUrl);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+
+                    // Parse and store flight data
+                    flightData = await response.json();
+                    console.log('Fetched Flight Data:', flightData);
+
+                    // Display flights
+                    displayFlights(flightData);
+                } catch (error) {
+                    console.error('Error fetching flights:', error);
+                    resultsList.innerHTML = `<p>Error fetching flights: ${error.message}</p>`;
+                }
+            }
+
+            /**
+             * Display flights in the results list.
+             * @param {Array} data - Array of flight objects.
+             */
+            function displayFlights(data) {
+                if (!data || data.length === 0) {
+                    resultsList.innerHTML = `<p>No flights available.</p>`;
+                    return;
+                }
+
+                // Generate flight cards
+                resultsList.innerHTML = data.map(flight => {
+                    const depTime = new Date(flight.departure_date);
+                    const arrTime = new Date(flight.arrival_time);
+                    const durationMs = arrTime - depTime;
+                    const hours = Math.floor(durationMs / (1000 * 60 * 60));
+                    const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+                    const duration = `${hours}h ${minutes}m`;
+                    
+                    return `
+                        <div class="flight-card">
+                            <div class="row align-items-center">
+                                <div class="col-md-3">
+                                    <div class="d-flex flex-column align-items-center">
+                                        <img src="${getAirlineLogo(flight.airline)}" alt="${flight.airline} logo" style="height: 60px; object-fit: contain; margin-bottom: 5px;">
+                                        <div><small>Flight No: ${flight.flight_number || 'N/A'}</small></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h5>${flight.source_city}</h5>
+                                            <p class="mb-0"><strong>${departureDay}</strong></p>
+                                            <p class="mb-0">${departureDate}</p>
+                                            <p class="mb-0">${departureTime}</p>
+                                        </div>
+                                        <div class="text-center" style="width: 100px;">
+                                            <p class="mb-0" style="color: green; font-weight: bold;">Direct</p>
+                                            <hr style="border: 1px solid black; margin: 0;">
+                                            <p class="mb-0" style="font-weight: bold;">${duration}</p>
+                                        </div>
+                                        <div>
+                                            <h5>${flight.destination_city}</h5>
+                                            <p class="mb-0"><strong>${arrivalDay}</strong></p>
+                                            <p class="mb-0">${arrivalDate}</p>
+                                            <p class="mb-0">${arrivalTime}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 text-end">
+                                    <p class="price">₹${fareInINR}</p>
+                                    <button class="btn btn-primary btn-select">Select &rarr;</button>
+                                </div>
+                            </div>
+                        </div>`;
+                }).join('');
+            }
+
+            /**
+             * Filter flights by selected airline.
+             */
+            function filterFlights() {
+                const selectedAirline = airlineDropdown.value;
+                console.log('Filtering by Airline:', selectedAirline);
+
+                let filteredFlights = [...flightData];
+                if (selectedAirline && selectedAirline !== "Select Airline") {
+                    filteredFlights = filteredFlights.filter(flight => flight.airline === selectedAirline);
+                }
+
+                displayFlights(filteredFlights);
+            }
+
+            /**
+             * Sort flights based on selected criteria.
+             */
+            function sortFlights() {
+                const selectedSort = sortDropdown.value;
+                console.log('Sorting by:', selectedSort);
+
+                let sortedFlights = [...flightData];
+                if (selectedSort === "Cheapest") {
+                    sortedFlights.sort((a, b) => parseFloat(a.fare) - parseFloat(b.fare));
+                } else if (selectedSort === "Quickest") {
+                    sortedFlights.sort((a, b) => {
+                        const durationA = new Date(a.arrival_time) - new Date(a.departure_date);
+                        const durationB = new Date(b.arrival_time) - new Date(b.departure_date);
+                        return durationA - durationB;
+                    });
+                }
+
+                displayFlights(sortedFlights);
+            }
+
+            /**
+             * Retrieve the airline logo URL.
+             * @param {string} airline - Airline name.
+             * @returns {string} URL for the airline's logo.
+             */
+            function getAirlineLogo(airline) {
+                const airlineLogos = {
+                    "IndiGo": "https://www.goindigo.in/content/dam/s6web/in/en/assets/logo/IndiGo_logo_2x.png",
+                    "AirIndia": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTG4Hl_QUqu6HY62hFZSZ5t0BcJAx8bWTm5ZA&s",
+                    "SpiceJet": "https://i.imghippo.com/files/oXZ4418xI.png"
+                };
+
+                return airlineLogos[airline] || "https://via.placeholder.com/60";
+            }
+
+            // Event listeners for dropdown changes
+            airlineDropdown.addEventListener('change', filterFlights);
+            sortDropdown.addEventListener('change', sortFlights);
+
+            // Fetch flights on page load
+            fetchFlights();
+        });
+    </script>
+
+    
+
+
+<!-- Footer Section -->
+<footer class="text-center text-lg-start text-white" id="about-section" style="background-color: #1f1f3dd5;">
+    <div class="container p-4 pb-0">
+        <div class="row">
+            <!-- Company Info Column -->
+            <div class="col-md-3 col-lg-3 col-xl-3 mx-auto mt-3">
+                <h6 class="text-uppercase mb-4 font-weight-bold">TransitGuide</h6>
+                <p>Your go-to platform for seamless flight searches. With real-time availability, best deals, and a user-friendly experience, TransitGuide helps you reach your destination faster and easier.</p>
+            </div>
+
+            <!-- Services Column -->
+            <div class="col-md-2 col-lg-2 col-xl-2 mx-auto mt-3">
+                <h6 class="text-uppercase mb-4 font-weight-bold">Services</h6>
+                <p><a href="#" class="text-white">Search Flights</a></p>
+                <p><a href="#" class="text-white">Best Fare Finder</a></p>
+                <p><a href="#" class="text-white">Booking Assistance</a></p>
+                <p><a href="#" class="text-white">Travel Updates</a></p>
+            </div>
+
+            <!-- Useful Links Column -->
+            <div class="col-md-3 col-lg-2 col-xl-2 mx-auto mt-3">
+                <h6 class="text-uppercase mb-4 font-weight-bold">Useful Links</h6>
+                <p><a href="#" class="text-white">Your Account</a></p>
+                <p><a href="#" class="text-white">Support</a></p>
+                <p><a href="#" class="text-white">Terms of Service</a></p>
+                <p><a href="#" class="text-white">Privacy Policy</a></p>
+            </div>
+
+            <!-- Contact Column -->
+            <div class="col-md-4 col-lg-3 col-xl-3 mx-auto mt-3">
+                <h6 class="text-uppercase mb-4 font-weight-bold">Contact</h6>
+                <p><i class="fas fa-home mr-3"></i> Old Boys Hostel, IIIT Delhi, Delhi IN</p>
+                <p><i class="fas fa-envelope mr-3"></i> support@transitguide.com</p>
+                <p><i class="fas fa-phone mr-3"></i> +1 234 567 890</p>
+            </div>
+        </div>
+
+        <hr class="my-3">
+
+        <!-- Social Media and Copyright -->
+        <div class="row d-flex align-items-center">
+            <div class="col-md-7 col-lg-8 text-center text-md-start">
+                <div class="p-3">
+                    &copy; 2024 TransitGuide. All rights reserved.
+                </div>
+            </div>
+            <div class="col-md-5 col-lg-4 ml-lg-0 text-center text-md-end">
+                <a href="#" class="btn btn-outline-light btn-floating m-1" role="button"><i class="fab fa-facebook-f"></i></a>
+                <a href="#" class="btn btn-outline-light btn-floating m-1" role="button"><i class="fab fa-twitter"></i></a>
+                <a href="#" class="btn btn-outline-light btn-floating m-1" role="button"><i class="fab fa-google"></i></a>
+                <a href="#" class="btn btn-outline-light btn-floating m-1" role="button"><i class="fab fa-instagram"></i></a>
+            </div>
+        </div>
+    </div>
+</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

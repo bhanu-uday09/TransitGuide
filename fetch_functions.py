@@ -1,26 +1,81 @@
 import http.client
 import json
 from datetime import datetime
-from config import get_indigo_db_connection, get_airindia_db_connection, get_spicejet_db_connection
-
 import pandas as pd
+from rapidfuzz import process, fuzz
+from config import get_indigo_db_connection, get_airindia_db_connection, get_spicejet_db_connection, get_globalview_db_connection
+import psycopg2
+import pandas as pd
+
+
+# Database connection details
+DB_NAME = "TransitGlobal"
+DB_USER = "postgres"
+DB_PASS = "0000"
+DB_HOST = "localhost"
+DB_PORT = "5432"
+
+# Function to get database connection
+def get_db_connection():
+    return psycopg2.connect(
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS,
+        host=DB_HOST,
+        port=DB_PORT
+    )
 
 # Load the CSV data into a DataFrame
 airport_df = pd.read_csv('assets/airport_data.csv', usecols=['city', 'airport_code'])
 
-def get_airport_code(city):
+def get_closest_city(user_city):
+    """
+    Find the closest matching city to the user's input using fuzzy matching.
+    """
     try:
-        # Filter the DataFrame to find the airport code for the given city
-        result = airport_df[airport_df['city'].str.lower() == city.lower()]['airport_code']
-        return result.iloc[0] if not result.empty else None
+        # List of available city names
+        city_list = airport_df['city'].tolist()
+
+        # Perform fuzzy matching
+        closest_match, score, _ = process.extractOne(
+            user_city.strip().title(), city_list, scorer=fuzz.ratio
+        )
+
+        # Debugging: Print matching details
+        print(f"Input: {user_city}, Closest Match: {closest_match}, Score: {score}")
+
+        # Threshold to ensure it's a valid match
+        if score >= 50:  # 70 is a lenient similarity threshold
+            return closest_match
+        else:
+            return None
     except Exception as e:
-        print(f"Error fetching airport code for {city}: {e}")
+        print(f"Error finding closest city: {e}")
+        return None
+
+
+def get_airport_code(user_city):
+    """
+    Get the airport code for the given city.
+    """
+    try:
+        # Find the closest matching city
+        closest_city = get_closest_city(user_city)
+
+        if closest_city:
+            # Filter the DataFrame to find the airport code for the closest city
+            result = airport_df[airport_df['city'] == closest_city]['airport_code']
+            return result.iloc[0] if not result.empty else None
+        else:
+            return None
+    except Exception as e:
+        print(f"Error fetching airport code for {user_city}: {e}")
         return None
 
 def make_api_request(endpoint):
     conn = http.client.HTTPSConnection("tripadvisor16.p.rapidapi.com")
     headers = {
-        'x-rapidapi-key': "2ea89f2327msh9beac03b77cbc80p126ef2jsn1f76a38ef4c2",
+        'x-rapidapi-key': "939577bcd4msh51c844c189119f7p129984jsnf3e058bd1f56",
         'x-rapidapi-host': "tripadvisor16.p.rapidapi.com"
     }
 
@@ -31,6 +86,26 @@ def make_api_request(endpoint):
     data = res.read()
     return json.loads(data.decode("utf-8"))
 
+def data_exists_in_global_flights(source, destination, journey_date):
+    """
+    Check if data for the given source, destination, and journey date exists in the global_flights table.
+    """
+    query = """
+        SELECT 1 FROM global_flights
+        WHERE source_city = %s AND destination_city = %s AND departure_date::date = %s
+        LIMIT 1;
+    """
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(query, (source, destination, journey_date))
+        exists = cur.fetchone() is not None
+        cur.close()
+        conn.close()
+        return exists
+    except Exception as e:
+        print(f"Error checking data existence in global_flights: {e}")
+        return False
 
 # 1. Indigo Flights Function
 def fetch_indigo_flights(source_airport_code, destination_airport_code, journey_date):
@@ -38,8 +113,9 @@ def fetch_indigo_flights(source_airport_code, destination_airport_code, journey_
         f"/api/v1/flights/searchFlights?sourceAirportCode={source_airport_code}"
         f"&destinationAirportCode={destination_airport_code}&date={journey_date}"
         f"&itineraryType=ONE_WAY&sortOrder=ML_BEST_VALUE&numAdults=1"
-        f"&classOfService=ECONOMY&pageNumber=1&nearby=yes&nonstop=yes&currencyCode=INR&airlines=6E"
+        f"&classOfService=ECONOMY&pageNumber=1&nearby=yes&nonstop=yes&currencyCode=USD&airlines=6E"
     )
+    print(api_endpoint)
     create_table_query = """
         CREATE TABLE IF NOT EXISTS IndigoFlights (
             id SERIAL PRIMARY KEY,
@@ -114,7 +190,7 @@ def fetch_spicejet_flights(source_airport_code, destination_airport_code, journe
         f"/api/v1/flights/searchFlights?sourceAirportCode={source_airport_code}"
         f"&destinationAirportCode={destination_airport_code}&date={journey_date}"
         f"&itineraryType=ONE_WAY&sortOrder=ML_BEST_VALUE&numAdults=1"
-        f"&classOfService=ECONOMY&pageNumber=1&nearby=yes&nonstop=yes&currencyCode=INR&airlines=SG"
+        f"&classOfService=ECONOMY&pageNumber=1&nearby=yes&nonstop=yes&currencyCode=USD&airlines=SG"
     )
     
     create_table_query = """
@@ -274,3 +350,42 @@ def fetch_air_india_flights(source_airport_code, destination_airport_code, journ
     except Exception as e:
         print(f"Error inserting data into AirIndiaFlights: {str(e)}")
         
+
+#4 global view
+def get_flights(source, destination, journey_date, sort_order, class_of_service):
+    try:
+        conn = get_globalview_db_connection()
+        cursor = conn.cursor()
+        query = """
+            SELECT flight_number, source_city, destination_city, departure_date, arrival_time, fare, class, airline
+            FROM global_flights
+            WHERE source_city = %s AND destination_city = %s AND departure_date = %s AND class = %s
+            ORDER BY
+                CASE
+                    WHEN %s = 'ML_BEST_VALUE' THEN fare
+                    WHEN %s = 'ML_LOWEST_PRICE' THEN fare
+                    WHEN %s = 'ML_QUICKEST' THEN departure_date
+                END
+            LIMIT 50;
+        """
+        cursor.execute(query, (source, destination, journey_date, class_of_service, sort_order, sort_order, sort_order))
+        results = cursor.fetchall()
+        conn.close()
+
+        flights = []
+        for row in results:
+            flights.append({
+                "flight_number": row[0],
+                "source_city": row[1],
+                "destination_city": row[2],
+                "departure_date": row[3],
+                "arrival_time": row[4],
+                "fare": row[5],
+                "class": row[6],
+                "airline": row[7],
+            })
+        return flights
+    except Exception as e:
+        print(f"Error querying global flights: {e}")
+        return []
+    

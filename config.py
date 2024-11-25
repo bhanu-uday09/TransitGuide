@@ -8,3 +8,6 @@ def get_spicejet_db_connection():
 
 def get_airindia_db_connection():
     return psycopg2.connect("dbname=AirIndiaDatabase user=postgres password=0000")
+
+def get_globalview_db_connection():
+    return psycopg2.connect("dbname=TransitGlobal user=postgres password=0000")

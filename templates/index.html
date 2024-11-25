@@ -97,6 +97,64 @@
         .text-black {
             color: black;
         }
+        .bg-footer-image {
+        background-image: url('https://cdn.pixabay.com/photo/2016/11/29/10/07/sunset-1867285_1280.jpg'); /* Replace with your preferred image URL */
+        background-size: cover;
+        background-position: center;
+        position: relative;
+        }
+        .bg-footer-image .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+        }
+        .bg-footer-image .text-center {
+            position: relative;
+            z-index: 2;
+        }
+        .flight-card {
+        /* background-color: #fff; */
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .flight-card .badge {
+            font-size: 0.9rem;
+            padding: 5px 10px;
+            border-radius: 12px;
+        }
+        .flight-card .badge-primary {
+            background-color: #1d3557;
+            color: #fff;
+        }
+        .flight-card .price {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        .flight-card .sponsored {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        .flight-card .airline-logo {
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+        }
+        .flight-card .btn-select {
+            background-color: #1d3557;
+            color: #fff;
+            font-weight: bold;
+            border: none;
+            padding: 10px 15px;
+        }
+        .flight-card .btn-select:hover {
+            background-color: #457b9d;
+        }
     </style>
 </head>
 <body>
@@ -134,11 +192,11 @@
         <div class="content">
             <h1>TRANSIT GUIDE</h1>
             <p>Discover the most efficient routes, avoid delays, and get real-time updates to make your journey smoother and stress-free.</p>
-            <button class="btn">Get Started</button>
+            <button class="btn" >Get Started</button>
         </div>
         <div class="search-box">
             <h3 class="text-black">Search Flights</h3>
-            <form method="POST" action="/">
+            <form id="searchForm" method="POST" action="/">
                 <div class="mb-3">
                     <label for="classOfService" class="form-label">Source City</label>
                     <input type="text" placeholder="From" class="form-control" id="source_city" name="source_city" required>
@@ -175,19 +233,61 @@
                     <label for="classOfService" class="form-label">Journet Date</label>
                     <input type="date" class="form-control" name="journey_date" placeholder="Start" id="journey_date" required>
                 </div>
-                <button type="submit" class="btn w-100">Search Flights</button>
+                <button type="submit" class="btn w-100" id="searchButton">Search Flights</button>
             </form>
         </div>
     </div>
 
-
-    <!-- Results Section -->
-    <div id="flight-results" style="display: none; padding: 20px; margin-top: 20px;">
-        <h3>Available Flights</h3>
-        <div id="results-list"></div>
-    </div>
-
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const searchButton = document.getElementById('searchButton');
+            const searchForm = document.getElementById('searchForm');
     
+            searchForm.addEventListener('submit', function (event) {
+                // Prevent default form submission behavior
+                event.preventDefault();
+    
+                // Gather form data
+                const sourceCity = document.getElementById('source_city').value;
+                const destinationCity = document.getElementById('destination_city').value;
+                const journeyDate = document.getElementById('journey_date').value;
+    
+                // Perform form submission
+                fetch(searchForm.action, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        source_city: sourceCity,
+                        destination_city: destinationCity,
+                        journey_date: journeyDate
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Form submission failed.');
+                    }
+                    return response.text(); // Process server response if needed
+                })
+                .then(() => {
+                    // Change the button behavior to redirect
+                    searchButton.type = 'button';
+                    searchButton.addEventListener('click', function () {
+                        window.location.href = `/results?source_city=${encodeURIComponent(sourceCity)}&destination_city=${encodeURIComponent(destinationCity)}&journey_date=${encodeURIComponent(journeyDate)}`;
+                    });
+    
+                    // Optionally, automatically redirect
+                    searchButton.click();
+                })
+                .catch(error => {
+                    console.error(error);
+                    alert('An error occurred during form submission.');
+                });
+            });
+        });
+    </script>
+
+
+
     <!-- Footer Section -->
     <footer class="text-center text-lg-start text-white" id="about-section" style="background-color: #1f1f3dd5;">
         <div class="container p-4 pb-0">
