@@ -160,40 +160,96 @@
                 </div>
                 <!-- Sort Filter -->
                 <div class="d-flex justify-content-between align-items-center mt-3">
-                    <!-- Airline Selection -->
-                    <div class="input-group" style="flex: 1">
-                        <label class="input-group-text" for="airlineDropdown"><i class="fas fa-plane"></i></label>
-                        <select class="form-select" id="airlineDropdown">
-                            <option selected>Select Airline</option>
-                            <option value="IndiGo">IndiGo</option>
-                            <option value="AirIndia">AirIndia</option>
-                            <option value="SpiceJet">SpiceJet</option>
-                        </select>
-                    </div>
-                    <!-- Spacer -->
-                    <div style="flex: 1.5"></div>
-                    <!-- Sort Options -->
-                    <div class="input-group" style="flex: 1">
-                        <label class="input-group-text" for="sortDropdown"><i class="fas fa-sort"></i></label>
-                        <select class="form-select" id="sortDropdown">
-                            <option selected>Sort by</option>
-                            <option value="Cheapest">Price</option>
-                            <option value="Quickest">Duration</option>
-                        </select>
-                    </div>
+                    
+                    
                 </div>
             </div>
 
             <!-- Results Section -->
-            <div id="flight-results" class="container mt-3" style="
-            max-height: 600px;
-            width: 66.66%;
-            align-items: start;
-            overflow-y: auto;
-            border-radius: 10px;
-          ">
-                <div id="results-list" class="container mt-3">
-                    <!-- Flight Card Template -->
+            <div class="results-container" style="display: flex; gap: 20px; margin-top: 20px;">
+                <!-- Flight Results -->
+                <div id="flight-results" class="container" style="
+                    max-height: 600px;
+                    width: 50%;
+                    margin-left: 40px;
+                    align-items: start;
+                    overflow-y: auto;
+                    border-radius: 10px;
+                    border: 1px solid #ddd;
+                    background-color: #f9f9f9;
+                    padding: 15px;
+                ">
+                    <div class="results-title" style="display: flex; align-items: center; gap: 80px; margin-bottom: 10px;">
+                        <!-- Airline Selection -->
+                        <div class="input-group" style="flex: 1;">
+                            <label class="input-group-text" for="airlineDropdown">
+                                <i class="fas fa-plane"></i>
+                            </label>
+                            <select class="form-select" id="airlineDropdown">
+                                <option selected>Select Airline</option>
+                                <option value="IndiGo">IndiGo</option>
+                                <option value="AirIndia">AirIndia</option>
+                                <option value="SpiceJet">SpiceJet</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Sort Options -->
+                        <div class="input-group" style="flex: 1;">
+                            <label class="input-group-text" for="sortDropdown">
+                                <i class="fas fa-sort"></i>
+                            </label>
+                            <select class="form-select" id="sortDropdown">
+                                <option selected>Sort by</option>
+                                <option value="Cheapest">Price</option>
+                                <option value="Quickest">Duration</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="flight-list" class="container mt-3">
+                        <!-- Flight Card Template -->
+                    </div>
+                </div>
+
+                <!-- Train Results -->
+                <div id="train-results" class="container" style="
+                    max-height: 600px;
+                    width: 50%;
+                    margin-right: 40px;
+                    align-items: start;
+                    overflow-y: auto;
+                    border-radius: 10px;
+                    border: 1px solid #ddd;
+                    background-color: #f9f9f9;
+                    padding: 15px;
+                ">
+                    <div class="results-title" style="display: flex; align-items: center; gap: 150px; margin-bottom: 10px;">
+                        <!-- Sort by Price Button -->
+                        <button id="sortPriceButton" style="
+                            flex: 1; 
+                            padding: 10px; 
+                            border: 1px solid #ccc; 
+                            background-color: white; 
+                            border-radius: 5px; 
+                            cursor: pointer;">
+                            <i class="fas fa-tag"></i>
+                            Sort by Price
+                        </button>
+                    
+                        <!-- Sort by Duration Button -->
+                        <button id="sortDurationButton" style="
+                            flex: 1; 
+                            padding: 10px; 
+                            border: 1px solid #ccc; 
+                            background-color: white; 
+                            border-radius: 5px; 
+                            cursor: pointer;">
+                            <i class="fas fa-clock"></i>
+                            Sort by Duration
+                        </button>
+                    </div>
+                    <div id="train-list" class="container mt-3">
+                        <!-- Train Card Template -->
+                    </div>
                 </div>
             </div>
         </div>
@@ -233,7 +289,7 @@
             const destinationCity = params.get('destination_city');
             const journeyDate = params.get('journey_date');
 
-            const resultsList = document.getElementById('results-list');
+            const resultsList = document.getElementById('flight-list');
             const airlineDropdown = document.getElementById('airlineDropdown');
             const sortDropdown = document.getElementById('sortDropdown');
 
@@ -327,7 +383,7 @@
                                         <div class="d-flex flex-column align-items-center">
                                             <img src="${getAirlineLogo(flight.airline)}" 
                                                 alt="${flight.airline} logo" 
-                                                style="height: 60px; object-fit: contain; margin-bottom: 5px;">
+                                                style="height: 40px; object-fit: contain; margin-bottom: 5px;">
                                             <div><small>Flight No: ${flight.flight_number || "N/A"}</small></div>
                                         </div>
                                     </div>
@@ -417,6 +473,69 @@
             // Fetch flights on page load
             fetchFlights();
         });
+
+        // Fetch train data and display it
+        async function fetchAndDisplayTrainData() {
+            try {
+                // Fetch train data from the backend API
+                const response = await fetch("/api/get_train_data");
+
+                // Check if the response is successful
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+                // Parse the JSON response
+                const trainData = await response.json();
+
+                // Call the function to display train data
+                displayTrainData(trainData);
+            } catch (error) {
+                // Log any errors to the console
+                console.error("Error fetching train data:", error);
+
+                // Optionally display an error message on the page
+                const container = document.getElementById("train-list");
+                container.innerHTML = `<p style="color: red;">Error fetching train data: ${error.message}</p>`;
+            }
+        }
+
+        // Display train data
+        function displayTrainData(data) {
+            // Get the container where train cards will be displayed
+            const container = document.getElementById("train-list");
+            container.innerHTML = ""; // Clear existing content
+
+            // Loop through each train data item and create a card
+            data.forEach((item) => {
+                const card = document.createElement("div");
+                card.className = "card"; // Add Bootstrap card class for styling
+                card.style = `
+                    border: 1px solid #ccc;
+                    border-radius: 5px;
+                    padding: 15px;
+                    margin-bottom: 10px;
+                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                `;
+
+                // Populate the card with train details
+                card.innerHTML = `
+                    <h3>${item.train_name}</h3>
+                    <p><strong>Train Number:</strong> ${item.train_number}</p>
+                    <p><strong>Departure:</strong> ${new Date(item.departure_time).toLocaleTimeString()}</p>
+                    <p><strong>Arrival:</strong> ${new Date(item.arrival_time).toLocaleTimeString()}</p>
+                    <p><strong>Duration:</strong> ${item.duration}</p>
+                    <p><strong>Price:</strong> ₹${item.price}</p>
+                `;
+
+                // Append the card to the container
+                container.appendChild(card);
+            });
+        }
+
+        // Call the function to fetch and display train data
+        fetchAndDisplayTrainData();
+        
     </script>
 
     <!-- Footer Section -->
