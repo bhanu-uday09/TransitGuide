@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransitGuide Chatbot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+        }
+        .chat-container {
+            max-width: 600px;
+            margin: 50px auto;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .chat-header {
+            background: #0078d7;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 18px;
+        }
+        .chat-box {
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            background: #f9f9f9;
+        }
+        .chat-input {
+            display: flex;
+            border-top: 1px solid #ddd;
+        }
+        .chat-input textarea {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            resize: none;
+            outline: none;
+            font-size: 16px;
+        }
+        .chat-input button {
+            background: #0078d7;
+            color: white;
+            border: none;
+            padding: 0 20px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .chat-input button:hover {
+            background: #005bb5;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .user-message {
+            text-align: right;
+            background-color: #e1f5fe;
+            color: #0078d7;
+            align-self: flex-end;
+        }
+        .bot-message {
+            text-align: left;
+            background-color: #f0f0f0;
+            color: #333;
+            align-self: flex-start;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">TransitGuide Chatbot</div>
+        <div class="chat-box" id="chat-box"></div>
+        <div class="chat-input">
+            <textarea id="user-input" rows="2" placeholder="Type your message..."></textarea>
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const chatBox = document.getElementById("chat-box");
+
+        /**
+         * Add a message to the chatbox
+         * @param {string} message - The message content.
+         * @param {string} type - The message type ('user' or 'bot').
+         */
+        function addMessage(message, type) {
+            const messageElement = document.createElement("div");
+            messageElement.className = `message ${type}-message`;
+            messageElement.innerText = message;
+            chatBox.appendChild(messageElement);
+            chatBox.scrollTop = chatBox.scrollHeight; // Scroll to the latest message
+        }
+
+        /**
+         * Send a message to the chatbot backend
+         */
+        async function sendMessage() {
+            const userInput = document.getElementById("user-input").value.trim();
+            if (!userInput) return; // Ignore empty messages
+
+            // Add the user's message to the chatbox
+            addMessage(userInput, "user");
+            document.getElementById("user-input").value = ""; // Clear input field
+
+            try {
+                // Make a POST request to the chatbot backend
+                const response = await fetch("/chatbot", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ message: userInput }), // Send user input
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json(); // Parse JSON response
+                console.log("Chatbot Response:", data); // Debugging in console
+
+                // Add the chatbot's response to the chatbox
+                if (data.response) {
+                    addMessage(data.response, "bot");
+                } else {
+                    addMessage("No response from the bot.", "bot"); // Handle missing response
+                }
+            } catch (error) {
+                console.error("Error fetching chatbot response:", error);
+                addMessage("Error: Could not fetch the chatbot response.", "bot");
+            }
+        }
+
+        // Allow sending messages with the Enter key
+        document.getElementById("user-input").addEventListener("keypress", function (event) {
+            if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault(); // Prevent newline
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>

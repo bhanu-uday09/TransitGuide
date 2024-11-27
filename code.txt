@@ -1,0 +1,16 @@
+<div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="source-city" class="form-label">Source City</label>
+                            <input type="text" id="source-city" class="form-control" placeholder="Start typing a city" list="source-cities">
+                            <datalist id="source-cities">
+                                <!-- Options will be populated dynamically -->
+                            </datalist>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="destination-city" class="form-label">Destination City</label>
+                            <input type="text" id="destination-city" class="form-control" placeholder="Start typing a city" list="destination-cities">
+                            <datalist id="destination-cities">
+                                <!-- Options will be populated dynamically -->
+                            </datalist>
+                        </div>
+                    </div>

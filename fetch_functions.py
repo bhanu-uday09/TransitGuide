@@ -75,7 +75,7 @@ def get_airport_code(user_city):
 def make_api_request(endpoint):
     conn = http.client.HTTPSConnection("tripadvisor16.p.rapidapi.com")
     headers = {
-        'x-rapidapi-key': "939577bcd4msh51c844c189119f7p129984jsnf3e058bd1f56",
+        'x-rapidapi-key': "3254875c10mshf948cf35f09d589p1c7181jsn2faeb668170d",
         'x-rapidapi-host': "tripadvisor16.p.rapidapi.com"
     }
 
