@@ -291,14 +291,30 @@
             const destinationCity = urlParams.get('destination_city');
 
             if (!sourceCity || !destinationCity) {
-                document.getElementById("bus-fare-cards").innerHTML = `
-                    <div style="display: flex; align-items: center;">
-                        <img src="https://img.icons8.com/ios-filled/50/000000/bus.png" 
+                busFares.forEach(fare => {
+                    const card = document.createElement("div");
+                    card.className = "bus-card";
+                    card.style.display = "flex";
+                    card.style.alignItems = "center";
+                    card.style.backgroundColor = "whitesmoke";
+                    card.style.border = "1px solid #ddd";
+                    card.style.borderRadius = "10px";
+                    card.style.padding = "15px";
+                    card.style.marginBottom = "20px";
+                    card.style.boxShadow = "0 2px 5px rgba(0, 0, 0, 0.1)";
+                    card.style.color = "black"; // Set text color to black for the card container
+
+                    card.innerHTML = `
+                        <img src="https://img.icons8.com/ios-filled/50/000000/bus--v1.png" 
                             alt="Bus Icon" 
                             style="height: 24px; margin-right: 10px;">
-                        <p style="margin: 0;">Buses from <strong>${fare.source}</strong> to <strong>${fare.destination}</strong> will cost you in a range of <strong>${fare.fare_range}</strong>.</p>
-                    </div>`;
-                return;
+                        <p style="margin: 0; color: black !important; font-size: 14px;">
+                            Buses from <strong>${fare.source}</strong> to <strong>${fare.destination}</strong> 
+                            will cost you in a range of <strong>${fare.fare_range}</strong>.
+                        </p>`;
+
+                    document.getElementById("bus-fare-cards").appendChild(card);
+                });
             }
 
             try {
