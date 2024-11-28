@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 import pandas as pd
 from rapidfuzz import process, fuzz
-from config import get_indigo_db_connection, get_airindia_db_connection, get_spicejet_db_connection, get_globalview_db_connection
+from functions.configfile import get_indigo_db_connection, get_airindia_db_connection, get_spicejet_db_connection, get_globalview_db_connection
 import psycopg2
 import pandas as pd
 

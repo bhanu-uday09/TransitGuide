@@ -26,8 +26,7 @@ def get_user_input():
     return srcCode, destCode, formatted_date
 
 # Main function to fetch train details
-def fetch_train_details():
-    source, destination, formatted_date = get_user_input()
+def fetch_train_details(source, destination, formatted_date):
     url = f"https://railways.makemytrip.com/api/tbsWithAvailabilityAndRecommendation/{source}/{destination}/{formatted_date}"
     headers = {
         "User-Agent": "Mozilla/5.0"
@@ -154,9 +153,3 @@ def transfer_data_to_postgres():
         connection.close()
     except Exception as e:
         print(f"Error transferring data to PostgreSQL: {e}")
-
-# Main function to run the pipeline
-if __name__ == "__main__":
-    fetch_train_details()
-    create_postgres_table()
-    transfer_data_to_postgres()

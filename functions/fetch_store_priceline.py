@@ -3,10 +3,28 @@ import json
 from datetime import datetime
 import pandas as pd
 from rapidfuzz import process, fuzz
-from config import get_priceline_db_connection
+import psycopg2
+
+def get_priceline_db_connection():
+    return psycopg2.connect("dbname=PriceLineDB user=postgres password=0000")
+
 
 # Load the CSV data into a DataFrame
 airport_df = pd.read_csv('assets/airport_data.csv', usecols=['city', 'airport_code','railway_station_code'])
+
+# Load airline data into a dictionary
+airline_data = {
+    "6E": "IndiGo",
+    "AI": "Air India",
+    "SG": "SpiceJet",
+    "UK": "Vistara",
+    "G8": "Go First",
+    "I5": "AirAsia India",
+    "9I": "Alliance Air",
+    "S5": "Star Air",
+    "QP": "Akasa Air"
+}
+
 
 def get_closest_city(user_city):
     """
@@ -58,8 +76,37 @@ def get_airport_code(user_city):
     
 # get_airport_code("Bumbai")
 
-# Function to create the FlightsInfo table
-def create_flights_table():
+
+# Function to fetch and store flight data
+def get_priceline_flights(source, destination, formatted_date):
+    # API connection setup
+    conn = http.client.HTTPSConnection("priceline-com2.p.rapidapi.com")
+    headers = {
+        'x-rapidapi-key': "3254875c10mshf948cf35f09d589p1c7181jsn2faeb668170d",
+        'x-rapidapi-host': "priceline-com2.p.rapidapi.com"
+    }
+    endpoint = f"/flights/search-one-way?originAirportCode={source}&destinationAirportCode={destination}&departureDate={formatted_date}&numOfStops=0"
+
+    # Fetch data from API
+    try:
+        conn.request("GET", endpoint, headers=headers)
+        res = conn.getresponse()
+        data = res.read()
+        response = json.loads(data.decode("utf-8"))
+    except json.JSONDecodeError:
+        print("Error decoding the API response.")
+        return
+    except Exception as e:
+        print(f"Error fetching data from API: {e}")
+        return
+
+    # Extract flight listings
+    listings = response.get("data", {}).get("listings", [])
+    if not listings:
+        print("No flight listings found.")
+        return
+
+    # Create the FlightsInfo table if not exists
     create_table_query = """
     CREATE TABLE IF NOT EXISTS FlightsInfo (
         Airlines TEXT,
@@ -81,130 +128,74 @@ def create_flights_table():
     try:
         connection = get_priceline_db_connection()
         if not connection:
-            print("Failed to connect to the database.")
             return
-
-        cursor = connection.cursor()
-        cursor.execute(create_table_query)
-        connection.commit()
-
-        print("Table FlightsInfo created or already exists.")
-        cursor.close()
-        connection.close()
+        with connection:
+            with connection.cursor() as cursor:
+                cursor.execute(create_table_query)
     except Exception as e:
         print(f"Error creating table: {e}")
-
-
-# Function to insert flight data into the FlightsInfo table
-def insert_flight_data(flights):
-    insert_query = """
-    INSERT INTO FlightsInfo (
-        Airlines, Flight_Number, Source_City, Source_Airport_Code,
-        Destination_City, Destination_Airport_Code, Departure_Date,
-        Departure_Time, Arrival_Date, Arrival_Time, Duration_of_Travel,
-        Stop_Quantity, Equipment_Name, Price_in_INR
-    ) VALUES (
-        %(Airlines)s, %(Flight Number)s, %(Source City)s, %(Source Airport Code)s,
-        %(Destination City)s, %(Destination Airport Code)s, %(Departure Date)s,
-        %(Departure Time)s, %(Arrival Date)s, %(Arrival Time)s, %(Duration of Travel)s,
-        %(Stop Quantity)s, %(Equipment Name)s, %(Price in INR)s
-    );
-    """
-    try:
-        connection = get_priceline_db_connection()
-        if not connection:
-            print("Failed to connect to the database.")
-            return
-
-        cursor = connection.cursor()
-
-        # Insert each flight into the database
-        for flight in flights:
-            cursor.execute(insert_query, flight)
-
-        connection.commit()
-
-        print(f"{len(flights)} rows inserted into FlightsInfo successfully.")
-        cursor.close()
-        connection.close()
-    except Exception as e:
-        print(f"Error inserting data: {e}")
-
-
-# Function to fetch flights data
-def get_PriceLine_flights(source, destination, formatted_date):
-    # API connection setup
-    conn = http.client.HTTPSConnection("priceline-com2.p.rapidapi.com")
-
-    headers = {
-        'x-rapidapi-key': "3254875c10mshf948cf35f09d589p1c7181jsn2faeb668170d",
-        'x-rapidapi-host': "priceline-com2.p.rapidapi.com"
-    }
-
-    # API request
-    endpoint = f"/flights/search-one-way?originAirportCode={source}&destinationAirportCode={destination}&departureDate={formatted_date}&numOfStops=0"
-    conn.request("GET", endpoint, headers=headers)
-    res = conn.getresponse()
-    data = res.read()
-
-    # Parse the API response
-    try:
-        response = json.loads(data.decode("utf-8"))
-    except json.JSONDecodeError:
-        print("Error decoding the API response.")
         return
 
-    # Extract details
-    listings = response.get("data", {}).get("listings", [])
-    if not listings:
-        print("No flight listings found.")
-        return
-
+    # Prepare flight data
     flights = []
-
     for listing in listings:
         slices = listing.get("slices", [])
         price_usd = listing.get("totalPriceWithDecimal", {}).get("price", "N/A")
         try:
-            price_inr = float(price_usd) * 84.46 if price_usd != "N/A" else "N/A"
+            price_inr = float(price_usd) * 84.46 if price_usd != "N/A" else None
         except ValueError:
-            price_inr = "N/A"
+            price_inr = None
 
         for slice_data in slices:
             segments = slice_data.get("segments", [])
-            total_duration = slice_data.get("durationInMinutes", "N/A")
-
             for segment in segments:
+                airline_code = segment.get("marketingAirline", "N/A")
+                airline_name = airline_data.get(airline_code, "Unknown")
+                date_time_depart = segment.get("departInfo", {}).get("time", {}).get("dateTime", "")
+                date_time_arrival = segment.get("arrivalInfo", {}).get("time", {}).get("dateTime", "")
+
                 flight_details = {
-                    "Airlines": segment.get("marketingAirline", "N/A"),
-                    "Flight Number": segment.get("flightNumber", "N/A"),
-                    "Source City": segment.get("departInfo", {}).get("airport", {}).get("name", "N/A"),
-                    "Source Airport Code": segment.get("departInfo", {}).get("airport", {}).get("code", "N/A"),
-                    "Destination City": segment.get("arrivalInfo", {}).get("airport", {}).get("name", "N/A"),
-                    "Destination Airport Code": segment.get("arrivalInfo", {}).get("airport", {}).get("code", "N/A"),
-                    "Departure Date": segment.get("departInfo", {}).get("time", {}).get("dateTime", "").split("T")[0],
-                    "Departure Time": segment.get("departInfo", {}).get("time", {}).get("dateTime", "").split("T")[1] if "T" in segment.get("departInfo", {}).get("time", {}).get("dateTime", "") else "N/A",
-                    "Arrival Date": segment.get("arrivalInfo", {}).get("time", {}).get("dateTime", "").split("T")[0],
-                    "Arrival Time": segment.get("arrivalInfo", {}).get("time", {}).get("dateTime", "").split("T")[1] if "T" in segment.get("arrivalInfo", {}).get("time", {}).get("dateTime", "") else "N/A",
-                    "Duration of Travel": f"{segment.get('duration', 'N/A')} minutes",
-                    "Stop Quantity": segment.get("stopQuantity", 0),
-                    "Equipment Name": segment.get("equipmentName", "N/A"),
-                    "Price in INR": f"₹ {price_inr:.2f}" if price_inr != "N/A" else "N/A"
+                    "Airlines": airline_name,
+                    "Flight_Number": segment.get("flightNumber", "N/A"),
+                    "Source_City": segment.get("departInfo", {}).get("airport", {}).get("name", "N/A"),
+                    "Source_Airport_Code": segment.get("departInfo", {}).get("airport", {}).get("code", "N/A"),
+                    "Destination_City": segment.get("arrivalInfo", {}).get("airport", {}).get("name", "N/A"),
+                    "Destination_Airport_Code": segment.get("arrivalInfo", {}).get("airport", {}).get("code", "N/A"),
+                    "Departure_Date": date_time_depart.split("T")[0] if "T" in date_time_depart else "N/A",
+                    "Departure_Time": date_time_depart.split("T")[1] if "T" in date_time_depart else "N/A",
+                    "Arrival_Date": date_time_arrival.split("T")[0] if "T" in date_time_arrival else "N/A",
+                    "Arrival_Time": date_time_arrival.split("T")[1] if "T" in date_time_arrival else "N/A",
+                    "Duration_of_Travel": f"{segment.get('duration', 'N/A')} minutes",
+                    "Stop_Quantity": segment.get("stopQuantity", 0),
+                    "Equipment_Name": segment.get("equipmentName", "N/A"),
+                    "Price_in_INR": f"₹ {price_inr:.2f}" if price_inr is not None else "N/A"
                 }
                 flights.append(flight_details)
 
-    # Insert data into the database
+    # Insert flight data
     if flights:
-        insert_flight_data(flights)
+        insert_query = """
+        INSERT INTO FlightsInfo (
+            Airlines, Flight_Number, Source_City, Source_Airport_Code,
+            Destination_City, Destination_Airport_Code, Departure_Date,
+            Departure_Time, Arrival_Date, Arrival_Time, Duration_of_Travel,
+            Stop_Quantity, Equipment_Name, Price_in_INR
+        ) VALUES (
+            %(Airlines)s, %(Flight_Number)s, %(Source_City)s, %(Source_Airport_Code)s,
+            %(Destination_City)s, %(Destination_Airport_Code)s, %(Departure_Date)s,
+            %(Departure_Time)s, %(Arrival_Date)s, %(Arrival_Time)s, %(Duration_of_Travel)s,
+            %(Stop_Quantity)s, %(Equipment_Name)s, %(Price_in_INR)s
+        );
+        """
+        try:
+            with connection:
+                with connection.cursor() as cursor:
+                    cursor.executemany(insert_query, flights)
+            print(f"{len(flights)} rows inserted into FlightsInfo successfully.")
+        except Exception as e:
+            print(f"Error inserting data: {e}")
     else:
-        print("No flights found.")
-
-
-# Main execution
-if __name__ == "__main__":
-    create_flights_table()  # Ensure table is created
-    source = input("Enter source airport code: ").strip().upper()
-    destination = input("Enter destination airport code: ").strip().upper()
-    travel_date = input("Enter travel date (YYYY-MM-DD): ").strip()
-    formatted_date = datetime.strptime(travel_date, "%Y-%m-%d").strftime("%Y-%m-%d")
-    get_PriceLine_flights(source, destination, formatted_date)
+        print("No flights to insert.")
+        
+        
+get_priceline_flights('RPR','BOM','2024-12-24')

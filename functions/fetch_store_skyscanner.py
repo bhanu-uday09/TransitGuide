@@ -3,7 +3,11 @@ import json
 from datetime import datetime
 import pandas as pd
 from rapidfuzz import process, fuzz
-from config import get_skyscanner_db_connection
+import psycopg2
+
+def get_skyscanner_db_connection():
+    return psycopg2.connect("dbname=SkyScannerDB user=postgres password=0000")
+
 
 # Load the CSV data into a DataFrame
 airport_df = pd.read_csv('assets/airport_data.csv', usecols=['city', 'airport_code','railway_station_code'])
@@ -71,9 +75,9 @@ def create_flights_table():
             id SERIAL PRIMARY KEY,
             Airlines VARCHAR(255),
             Source_City VARCHAR(255),
-            Source_Airport_Name VARCHAR(255),
+            Source_Airport_Code VARCHAR(255),
             Destination_City VARCHAR(255),
-            Destination_Airport_Name VARCHAR(255),
+            Destination_Airport_Code VARCHAR(255),
             Departure_Date DATE,
             Departure_Time TIME,
             Arrival_Date DATE,
@@ -95,102 +99,98 @@ def create_flights_table():
             cursor.close()
             conn.close()
 
-# Function to fetch flights data
+# Function to fetch flights from SkyScanner
 def get_skyScanner_flights(source, destination, travel_date):
-    # Get Airport code
-    srcCode= get_airport_code(source)
-    dstCode= get_airport_code(destination)
     
-    # Format the date as required by the API
     formatted_date = datetime.strptime(travel_date, "%Y-%m-%d").strftime("%Y-%m-%d")
     conn = http.client.HTTPSConnection("sky-scanner3.p.rapidapi.com")
-
+    
     headers = {
         'x-rapidapi-key': "3254875c10mshf948cf35f09d589p1c7181jsn2faeb668170d",
         'x-rapidapi-host': "sky-scanner3.p.rapidapi.com"
     }
-
-    # API request
-    endpoint = f"/flights/search-one-way?fromEntityId={srcCode}&toEntityId={dstCode}&departDate={formatted_date}&currency=INR&cabinClass=economy"
+    
+    endpoint = f"/flights/search-one-way?fromEntityId={source}&toEntityId={destination}&departDate={formatted_date}&currency=INR&cabinClass=economy"
     conn.request("GET", endpoint, headers=headers)
     res = conn.getresponse()
     data = res.read()
-    response = json.loads(data.decode("utf-8"))
+    
+    try:
+        response = json.loads(data.decode("utf-8"))
+    except json.JSONDecodeError:
+        print("Error decoding the API response.")
+        return
+    
+    # Create the FlightsData table
+    create_table_query = """
+    CREATE TABLE IF NOT EXISTS FlightsData (
+        id SERIAL PRIMARY KEY,
+        Airlines VARCHAR(255),
+        Source_City VARCHAR(255),
+        Source_Airport_Code VARCHAR(255),
+        Destination_City VARCHAR(255),
+        Destination_Airport_Code VARCHAR(255),
+        Departure_Date DATE,
+        Departure_Time TIME,
+        Arrival_Date DATE,
+        Arrival_Time TIME,
+        Duration_of_Travel VARCHAR(50),
+        Flight_Number VARCHAR(50),
+        Price_in_INR VARCHAR(50)
+    );
+    """
+    try:
+        connection = get_skyscanner_db_connection()
+        if not connection:
+            return
+        with connection:
+            with connection.cursor() as cursor:
+                cursor.execute(create_table_query)
+    except Exception as e:
+        print(f"Error creating table: {e}")
+        return
 
-    # Extract details
+    # Extract flight details
     itineraries = response.get("data", {}).get("itineraries", [])
     flights = []
-
     for itinerary in itineraries:
         price = itinerary.get("price", {}).get("raw", "N/A")
         legs = itinerary.get("legs", [])
-        
         for leg in legs:
-            flight_details = {
-                "Airlines": leg.get("carriers", {}).get("marketing", [{}])[0].get("name", "N/A"),
-                "Source_City": leg.get("origin", {}).get("city", "N/A"),
-                "Source_Airport_Name": leg.get("origin", {}).get("name", "N/A"),
-                "Destination_City": leg.get("destination", {}).get("city", "N/A"),
-                "Destination_Airport_Name": leg.get("destination", {}).get("name", "N/A"),
-                "Departure_Date": leg.get("departure", "").split("T")[0],
-                "Departure_Time": leg.get("departure", "").split("T")[1] if "T" in leg.get("departure", "") else None,
-                "Arrival_Date": leg.get("arrival", "").split("T")[0],
-                "Arrival_Time": leg.get("arrival", "").split("T")[1] if "T" in leg.get("arrival", "") else None,
-                "Duration_of_Travel": f"{leg.get('durationInMinutes', 'N/A')} minutes",
-                "Flight_Number": leg.get("segments", [{}])[0].get("flightNumber", "N/A"),
-                "Price_in_INR": f"₹ {float(price):.2f}" if price != "N/A" else "N/A"
-            }
-            flights.append(flight_details)
+            flights.append((
+                leg.get("carriers", {}).get("marketing", [{}])[0].get("name", "N/A"),
+                leg.get("origin", {}).get("city", "N/A"),
+                leg.get("origin", {}).get("displayCode", "N/A"),
+                leg.get("destination", {}).get("city", "N/A"),
+                leg.get("destination", {}).get("displayCode", "N/A"),
+                leg.get("departure", "").split("T")[0],
+                leg.get("departure", "").split("T")[1] if "T" in leg.get("departure", "") else None,
+                leg.get("arrival", "").split("T")[0],
+                leg.get("arrival", "").split("T")[1] if "T" in leg.get("arrival", "") else None,
+                f"{leg.get('durationInMinutes', 'N/A')} minutes",
+                leg.get("segments", [{}])[0].get("flightNumber", "N/A"),
+                f"₹ {float(price):.2f}" if price != "N/A" else "N/A"
+            ))
     
-    return flights
-
-# Function to insert flight data into the database
-def insert_flights_data(flights):
-    try:
-        conn = get_skyscanner_db_connection()
-        cursor = conn.cursor()
-        
-        # SQL command to insert data
+    # Insert data into the database
+    if flights:
         insert_query = """
         INSERT INTO FlightsData (
-            Airlines, Source_City, Source_Airport_Name, Destination_City,
-            Destination_Airport_Name, Departure_Date, Departure_Time,
+            Airlines, Source_City, Source_Airport_Code, Destination_City,
+            Destination_Airport_Code, Departure_Date, Departure_Time,
             Arrival_Date, Arrival_Time, Duration_of_Travel, Flight_Number, Price_in_INR
         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
         """
+        try:
+            with connection:
+                with connection.cursor() as cursor:
+                    cursor.executemany(insert_query, flights)
+            print(f"{len(flights)} rows inserted into FlightsData successfully.")
+        except Exception as e:
+            print(f"Error inserting data: {e}")
+    else:
+        print("No flights to insert.")
         
-        for flight in flights:
-            cursor.execute(insert_query, (
-                flight["Airlines"], flight["Source_City"], flight["Source_Airport_Name"],
-                flight["Destination_City"], flight["Destination_Airport_Name"],
-                flight["Departure_Date"], flight["Departure_Time"], flight["Arrival_Date"],
-                flight["Arrival_Time"], flight["Duration_of_Travel"], flight["Flight_Number"],
-                flight["Price_in_INR"]
-            ))
         
-        conn.commit()
-        print(f"{len(flights)} flight records inserted successfully.")
         
-    except Exception as e:
-        print("Error inserting flight data:", e)
-        
-    finally:
-        if conn:
-            cursor.close()
-            conn.close()
-
-# Main function
-if __name__ == "__main__":
-    # Create the table
-    create_flights_table()
-    
-    # Example inputs
-    source = "Bumbae"  
-    destination = "Vishakaptnam" 
-    formatted_date = "2024-12-26"
-    
-    # Fetch flight data
-    flights = get_skyScanner_flights(source, destination, formatted_date)
-    
-    # Insert data into the database
-    insert_flights_data(flights)
+# get_skyScanner_flights('BOM','HYD','2024-12-27')

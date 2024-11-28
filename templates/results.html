@@ -140,23 +140,20 @@
                     <!-- Source -->
                     <div class="input-group me-2">
                         <span class="input-group-text"><i class="fas fa-plane-departure"></i></span>
-                        <input type="text" class="form-control" id="source_city" placeholder="Source City" />
+                        <h2 type="text" class="form-control" id="source_city" placeholder="Source City"></h2>
                     </div>
 
                     <!-- Destination -->
                     <div class="input-group me-2">
                         <span class="input-group-text"><i class="fas fa-plane-arrival"></i></span>
-                        <input type="text" class="form-control" id="destination_city" placeholder="Destination City" />
+                        <h2 type="text" class="form-control" id="destination_city" placeholder="Destination City"></h2>
                     </div>
 
                     <!-- Travel Date -->
                     <div class="input-group me-2">
                         <span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
-                        <input type="date" class="form-control" id="journey_date" />
+                        <h2 type="date" class="form-control" id="journey_date"></h2> 
                     </div>
-
-                    <!-- Search Button -->
-                    <button class="btn btn-primary">Search</button>
                 </div>
                 <!-- Sort Filter -->
                 <div class="d-flex justify-content-between align-items-center mt-3">
@@ -165,12 +162,6 @@
                 </div>
             </div>
 
-            
-            <div class="container">
-                <div id="bus-fare-cards">
-                    <!-- Bus fare cards will be dynamically loaded here -->
-                </div>
-            </div>
 
             <!-- Results Section -->
             <div class="results-container" style="display: flex; gap: 20px; margin-top: 20px;">
@@ -241,9 +232,7 @@
                                 <option value="3A">3A</option>
                                 <option value="2A">2A</option>
                                 <option value="1A">1A</option>
-                                <option value="CC">CC</option>
                                 <option value="SL">SL</option>
-                                <option value="2S">2S</option>
                             </select>
                         </div>
 
@@ -260,22 +249,7 @@
                         </button>
                     
                     </div>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="source-city" class="form-label">Source City</label>
-                            <input type="text" id="source-city" class="form-control" placeholder="Start typing a city" list="source-cities">
-                            <datalist id="source-cities">
-                                <!-- Options will be populated dynamically -->
-                            </datalist>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="destination-city" class="form-label">Destination City</label>
-                            <input type="text" id="destination-city" class="form-control" placeholder="Start typing a city" list="destination-cities">
-                            <datalist id="destination-cities">
-                                <!-- Options will be populated dynamically -->
-                            </datalist>
-                        </div>
-                    </div>
+                    
                     <div id="train-list" class="container mt-3">
                         <!-- Train Card Template -->
                     </div>
@@ -285,466 +259,151 @@
     </div>
 
     <script>
-        async function fetchBusFares() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const sourceCity = urlParams.get('source_city');
-            const destinationCity = urlParams.get('destination_city');
-
-            if (!sourceCity || !destinationCity) {
-                busFares.forEach(fare => {
-                    const card = document.createElement("div");
-                    card.className = "bus-card";
-                    card.style.display = "flex";
-                    card.style.alignItems = "center";
-                    card.style.backgroundColor = "whitesmoke";
-                    card.style.border = "1px solid #ddd";
-                    card.style.borderRadius = "10px";
-                    card.style.padding = "15px";
-                    card.style.marginBottom = "20px";
-                    card.style.boxShadow = "0 2px 5px rgba(0, 0, 0, 0.1)";
-                    card.style.color = "black"; // Set text color to black for the card container
-
-                    card.innerHTML = `
-                        <img src="https://img.icons8.com/ios-filled/50/000000/bus--v1.png" 
-                            alt="Bus Icon" 
-                            style="height: 24px; margin-right: 10px;">
-                        <p style="margin: 0; color: black !important; font-size: 14px;">
-                            Buses from <strong>${fare.source}</strong> to <strong>${fare.destination}</strong> 
-                            will cost you in a range of <strong>${fare.fare_range}</strong>.
-                        </p>`;
-
-                    document.getElementById("bus-fare-cards").appendChild(card);
-                });
+        document.addEventListener("DOMContentLoaded", async () => {
+            // Function to get URL parameters
+            function getUrlParam(param) {
+                const urlParams = new URLSearchParams(window.location.search);
+                return urlParams.get(param);
             }
 
-            try {
-                const response = await fetch(`/api/get_bus_fares?source_city=${encodeURIComponent(sourceCity)}&destination_city=${encodeURIComponent(destinationCity)}`);
+            // Extract parameters from URL
+            const sourceCity = getUrlParam("source_city") ;
+            const destinationCity = getUrlParam("destination_city") ;
+            const journeyDate = getUrlParam("journey_date") ;
 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || response.statusText);
-                }
-
-                const busFares = await response.json();
-
-                if (!busFares.length) {
-                    document.getElementById("bus-fare-cards").innerHTML = `
-                        <p class="no-data-message">No bus fares found for the selected route.</p>`;
-                    return;
-                }
-
-                const container = document.getElementById("bus-fare-cards");
-                container.innerHTML = "";
-
-                busFares.forEach(fare => {
-                    const card = document.createElement("div");
-                    card.className = "bus-card";
-                    card.innerHTML = `
-                        <h3>Buses from <strong>${fare.source}</strong> to <strong>${fare.destination}</strong> will cost you in a range of <strong>${fare.fare_range}</strong>.</h3>`;
-                    container.appendChild(card);
-                });
-
-            } catch (error) {
-                console.error("Error fetching bus fares:", error.message);
-                document.getElementById("bus-fare-cards").innerHTML = `
-                    <p class="no-data-message">Error fetching bus fare data: ${error.message}</p>`;
-            }
-        }
-
-        // Fetch and display bus fares on page load
-        document.addEventListener("DOMContentLoaded", fetchBusFares);
-       
-                    
-
-        async function getAirportCode(cityName) {
-            try {
-                const response = await fetch(
-                    `/api/getAirportCode?city_name=${encodeURIComponent(cityName)}`
-                );
-                if (!response.ok) {
-                    throw new Error(
-                        `Failed to fetch airport code for ${cityName}: ${response.statusText}`
-                    );
-                }
-                const data = await response.json();
-                if (data.error) {
-                    console.error(data.error);
+            // Function to fetch airport or railway station code
+            async function fetchCode(apiUrl, cityName) {
+                try {
+                    const response = await fetch(`${apiUrl}?city_name=${cityName}`);
+                    const data = await response.json();
+                    if (response.ok) {
+                        return data.airport_code || data.railway_station_code;
+                    } else {
+                        console.error(data.error);
+                        return null;
+                    }
+                } catch (error) {
+                    console.error("Error fetching code:", error);
                     return null;
                 }
-                return `${data.airport_code} - ${data.city_name}`;
-            } catch (error) {
-                console.error(
-                    `Error fetching airport code for ${cityName}:`,
-                    error.message
-                );
-                return null;
-            }
-        }
-
-        document.addEventListener("DOMContentLoaded", async function () {
-            let flightData = []; 
-            let trainData = [];
-
-            // Fetch and display flights and train data
-            await fetchAndDisplayTrainData();
-
-            // Add event listeners for filtering and sorting trains
-            document.getElementById("classDropdown").addEventListener("change", filterTrainsByClass);
-            document.getElementById("sortPriceButton").addEventListener("click", sortTrainsByPrice);
-
-            const params = new URLSearchParams(window.location.search);
-            const sourceCity = params.get('source_city');
-            const destinationCity = params.get('destination_city');
-            const journeyDate = params.get('journey_date');
-
-            const resultsList = document.getElementById('flight-list');
-            const airlineDropdown = document.getElementById('airlineDropdown');
-            const sortDropdown = document.getElementById('sortDropdown');
-
-            console.log('Source City:', sourceCity);
-            console.log('Destination City:', destinationCity);
-            console.log('Journey Date:', journeyDate);
-
-            if (!sourceCity || !destinationCity || !journeyDate) {
-                resultsList.innerHTML = `<p>Missing required parameters in the URL.</p>`;
-                return;
             }
 
-            const source = await getAirportCode(sourceCity);
-            const destination = await getAirportCode(destinationCity);
+            // Use `await` to resolve the Promises returned by `fetchCode`
+            const sourceAirportCode = await fetchCode('/api/getAirportCode', sourceCity);
+            const destinationAirportCode = await fetchCode('/api/getAirportCode', destinationCity);
+            const sourceStationCode = await fetchCode('/api/getRailwayStationCode', sourceCity);
+            const destinationStationCode = await fetchCode('/api/getRailwayStationCode', destinationCity);
 
-            if (!source || !destination) {
-                alert("Failed to fetch airport details. Please check the input cities.");
-                return;
-            }
+            // Log resolved values to the console
+            console.log("Source Airport Code:", sourceAirportCode);
+            console.log("Destination Airport Code:", destinationAirportCode);
+            console.log("Source Railway Station Code:", sourceStationCode);
+            console.log("Destination Railway Station Code:", destinationStationCode);
+            
+            // Construct dynamic API URLs
+            const trainAPI = `/api/getTrainData?source=${sourceStationCode}&destination=${destinationStationCode}&date=${journeyDate}`;
+            const flightAPI = `/api/flights?source_city=${sourceAirportCode}&destination_city=${destinationAirportCode}&journey_date=${journeyDate}`;
 
-            document.querySelector("#source_city").value = source;
-            document.querySelector("#destination_city").value = destination;
-            document.querySelector("#journey_date").value = journeyDate;
+            // Fetch Train Data
+            fetch(trainAPI)
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Train Data:", data); // Debugging
+                    const trainList = document.getElementById("train-list");
+                    trainList.innerHTML = ""; // Clear previous content
 
-            async function fetchFlights() {
-                const apiUrl = `/api/flights?source_city=${encodeURIComponent(
-                    source.split(" - ")[0]
-                )}&destination_city=${encodeURIComponent(
-                    destination.split(" - ")[0]
-                )}&journey_date=${encodeURIComponent(journeyDate)}`;
+                    const trains = data.train_data || []; // Access the nested train_data array
+                    if (trains.length === 0) {
+                        trainList.innerHTML = "<p>No train data available</p>";
+                    } else {
+                        trains.forEach(train => {
+                            // Dynamically create ticket prices HTML
+                            let ticketPricesHTML = "";
+                            for (const [classType, price] of Object.entries(train.ticket_prices)) {
+                                ticketPricesHTML += `<strong>${classType}:</strong> ${price}<br>`;
+                            }
 
-                try {
-                    resultsList.innerHTML = "<p>Loading flights...</p>";
-                    const response = await fetch(apiUrl);
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! Status: ${response.status}`);
+                            const card = `
+                                <div class="card flight-card">
+                                    <div class="card-body">
+                                        <h5 class="card-title">${train.train_name || "Unknown"}</h5>
+                                        <p class="card-text">
+                                            <strong>Train Number:</strong> ${train.train_number || "N/A"}<br>
+                                            <strong>Source:</strong> ${train.source_city || "N/A"} (${train.source_station_code || "N/A"})<br>
+                                            <strong>Destination:</strong> ${train.destination_city || "N/A"} (${train.destination_station_code || "N/A"})<br>
+                                            <strong>Travel Date:</strong> ${train.travel_date || "N/A"}<br>
+                                            <strong>Ticket Prices:</strong><br>${ticketPricesHTML}
+                                        </p>
+                                        <button class="btn btn-select">Book Now</button>
+                                    </div>
+                                </div>
+                            `;
+                            trainList.insertAdjacentHTML("beforeend", card);
+                        });
                     }
-                    flightData = await response.json();
-                    console.log("Fetched Flight Data:", flightData);
-                    displayFlights(flightData);
-                } catch (error) {
-                    console.error("Error fetching flights:", error);
-                    resultsList.innerHTML = `<p>Error fetching flights: ${error.message}</p>`;
-                }
+                })
+                .catch(err => console.error("Error fetching train data:", err));
+
+            // Function to format date and time
+            function formatDateTime(timestamp) {
+                const dateObj = new Date(timestamp);
+                const optionsDate = { year: 'numeric', month: 'long', day: 'numeric' };
+                const optionsTime = { hour: '2-digit', minute: '2-digit', hour12: true };
+                const day = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+                const date = dateObj.toLocaleDateString('en-US', optionsDate);
+                const time = dateObj.toLocaleTimeString('en-US', optionsTime);
+                return { day, date, time };
             }
 
-            function displayFlights(data) {
-                // Ensure the `resultsList` element exists
-                if (!data || data.length === 0) {
-                    resultsList.innerHTML = `<p>No flights available for the selected route and date.</p>`;
-                    return;
-                }
+            // Fetch Flight Data
+            fetch(flightAPI)
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Flight Data:", data); // Debugging
 
-                resultsList.innerHTML = data
-                    .map((flight) => {
-                        // Parse flight times
-                        const depTime = new Date(flight.departure_date);
-                        const arrTime = new Date(flight.arrival_time);
+                    const flightList = document.getElementById("flight-list");
+                    flightList.innerHTML = ""; // Clear previous content
 
-                        // Calculate duration
-                        const durationMs = arrTime - depTime;
-                        const hours = Math.floor(durationMs / (1000 * 60 * 60));
-                        const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
-                        const duration = `${hours}h ${minutes}m`;
+                    // Check if 'data' is an array or contains a 'flights' property
+                    const flights = Array.isArray(data) ? data : data.flights || [];
+                    if (flights.length === 0) {
+                        flightList.innerHTML = "<p>No flight data available</p>";
+                    } else {
+                        flights.forEach(flight => {
+                            // Format departure and arrival timestamps
+                            const departure = formatDateTime(flight.departure_timestamp);
+                            const arrival = formatDateTime(flight.arrival_timestamp);
 
-                        // Format times and dates
-                        const departureDay = depTime.toLocaleDateString("en-US", { weekday: "long" });
-                        const departureDate = depTime.toLocaleDateString("en-US");
-                        const departureTime = depTime.toLocaleTimeString("en-US", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            hour12: true,
+                            // Create the flight card
+                            const card = `
+                                <div class="card flight-card">
+                                    <div class="card-body">
+                                        <h5 class="card-title">${flight.airline || "Unknown Airline"}</h5>
+                                        <p class="card-text">
+                                            <strong>Flight ID:</strong> ${flight.flight_id || "N/A"}<br>
+                                            <strong>Source:</strong> ${flight.source_city || "N/A"}<br>
+                                            <strong>Destination:</strong> ${flight.destination_city || "N/A"}<br>
+                                            <strong>Fare:</strong> ${flight.fare || "N/A"}<br>
+                                            <strong>Departure:</strong><br>
+                                            &nbsp;&nbsp;Day: ${departure.day}<br>
+                                            &nbsp;&nbsp;Date: ${departure.date}<br>
+                                            &nbsp;&nbsp;Time: ${departure.time}<br>
+                                            <strong>Arrival:</strong><br>
+                                            &nbsp;&nbsp;Day: ${arrival.day}<br>
+                                            &nbsp;&nbsp;Date: ${arrival.date}<br>
+                                            &nbsp;&nbsp;Time: ${arrival.time}<br>
+                                        </p>
+                                        <button class="btn btn-select">Book Now</button>
+                                    </div>
+                                </div>
+                            `;
+                            flightList.insertAdjacentHTML("beforeend", card);
                         });
-
-                        const arrivalDay = arrTime.toLocaleDateString("en-US", { weekday: "long" });
-                        const arrivalDate = arrTime.toLocaleDateString("en-US");
-                        const arrivalTime = arrTime.toLocaleTimeString("en-US", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            hour12: true,
-                        });
-
-                        // Format fare
-                        const fareInINR = (parseFloat(flight.fare) * 84.46).toFixed(2);
-
-                        // Generate flight card HTML
-                        return `
-                            <div class="flight-card">
-                                <div class="row align-items-center">
-                                    <div class="col-md-3">
-                                        <div class="d-flex flex-column align-items-center">
-                                            <img src="${getAirlineLogo(flight.airline)}" 
-                                                alt="${flight.airline} logo" 
-                                                style="height: 40px; object-fit: contain; margin-bottom: 5px;">
-                                            <div><small>Flight No: ${flight.flight_number || "N/A"}</small></div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <h5>${flight.source_city}</h5>
-                                                <p class="mb-0"><strong>${departureDay}</strong></p>
-                                                <p class="mb-0">${departureDate}</p>
-                                                <p class="mb-0">${departureTime}</p>
-                                            </div>
-                                            <div class="text-center" style="width: 100px;">
-                                                <p class="mb-0" style="color: green; font-weight: bold;">Direct</p>
-                                                <hr style="border: 1px solid black; margin: 0;">
-                                                <p class="mb-0" style="font-weight: bold;">${duration}</p>
-                                            </div>
-                                            <div>
-                                                <h5>${flight.destination_city}</h5>
-                                                <p class="mb-0"><strong>${arrivalDay}</strong></p>
-                                                <p class="mb-0">${arrivalDate}</p>
-                                                <p class="mb-0">${arrivalTime}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3 text-end">
-                                        <p class="price">₹${fareInINR}</p>
-                                        <button class="btn btn-primary btn-select">Select &rarr;</button>
-                                    </div>
-                                </div>
-                            </div>`;
-                    })
-                    .join(""); // Join all flight cards into a single string
-            }
-
-            /**
-             * Filter flights by selected airline.
-             */
-             function filterFlights() {
-                const selectedAirline = airlineDropdown.value;
-                console.log('Filtering by Airline:', selectedAirline);
-
-                let filteredFlights = [...flightData];
-                if (selectedAirline && selectedAirline !== "Select Airline") {
-                    filteredFlights = filteredFlights.filter(flight => flight.airline === selectedAirline);
-                }
-
-                displayFlights(filteredFlights);
-            }
-
-            /**
-             * Sort flights based on selected criteria.
-             */
-            function sortFlights() {
-                const selectedSort = sortDropdown.value;
-                console.log('Sorting by:', selectedSort);
-
-                let sortedFlights = [...flightData];
-                if (selectedSort === "Cheapest") {
-                    sortedFlights.sort((a, b) => parseFloat(a.fare) - parseFloat(b.fare));
-                } else if (selectedSort === "Quickest") {
-                    sortedFlights.sort((a, b) => {
-                        const durationA = new Date(a.arrival_time) - new Date(a.departure_date);
-                        const durationB = new Date(b.arrival_time) - new Date(b.departure_date);
-                        return durationA - durationB;
-                    });
-                }
-
-                displayFlights(sortedFlights);
-            }
-
-            function getAirlineLogo(airline) {
-                // Airline logos map
-                const airlineLogos = {
-                    IndiGo: "https://www.goindigo.in/content/dam/s6web/in/en/assets/logo/IndiGo_logo_2x.png",
-                    AirIndia: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTG4Hl_QUqu6HY62hFZSZ5t0BcJAx8bWTm5ZA&s",
-                    SpiceJet: "https://i.imghippo.com/files/oXZ4418xI.png",
-                };
-
-                // Return the logo URL or a placeholder
-                return airlineLogos[airline] || "https://via.placeholder.com/60?text=No+Logo";
-            }
-
-            // Event listeners for dropdown changes
-            airlineDropdown.addEventListener('change', filterFlights);
-            sortDropdown.addEventListener('change', sortFlights);
-
-            // Fetch flights on page load
-            fetchFlights();
-
-
-            // Fetch train data and display it
-            async function fetchAndDisplayTrainData() {
-                try {
-                    const response = await fetch("/api/get_train_data");
-                    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-
-                    trainData = await response.json(); // Store train data globally
-                    displayTrainData(trainData); // Display all the fetched train data
-                    populateCitySuggestions(); // Populate the autocomplete suggestions
-                } catch (error) {
-                    console.error("Error fetching train data:", error);
-                    document.getElementById("train-list").innerHTML = `<p style="color: red;">Error fetching train data: ${error.message}</p>`;
-                }
-            }
-
-            // Display the train data on the page
-            function displayTrainData(data) {
-                const container = document.getElementById("train-list");
-                container.innerHTML = ""; // Clear existing content
-
-                if (!data || data.length === 0) {
-                    container.innerHTML = `<p>No trains available for the selected route and date.</p>`;
-                    return;
-                }
-
-                data.forEach((item) => {
-                    const card = document.createElement("div");
-                    card.className = "train-card";
-                    card.style = `
-                        background-color: whitesmoke;
-                        border: none;
-                        border-radius: 10px;
-                        padding: 15px;
-                        margin-bottom: 20px;
-                        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-                        color: black;
-                    `;
-
-                    card.innerHTML = `
-                        <div class="row align-items-center">
-                            <div class="col-md-3">
-                                <div class="d-flex flex-column align-items-center">
-                                    <i class="fas fa-train" style="font-size: 2rem; color: #1d3557; margin-bottom: 5px;"></i>
-                                    <div><small>Train No: ${item.train_number || "N/A"}</small></div>
-                                    <div><strong>${item.train_name}</strong></div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h5>${item.from_station_city} (${item.from_station_code})</h5>
-                                    </div>
-                                    <div class="text-center" style="width: 100px;">
-                                        <p class="mb-0" style="font-weight: bold;">Class: ${item.class}</p>
-                                        <hr style="border: 1px solid black; margin: 0 3pt;">
-                                    </div>
-                                    <div>
-                                        <h5>${item.to_station_city} (${item.to_station_code})</h5>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3 text-end">
-                                <h3 class="price">₹${item.price}</h3>
-                            </div>
-                        </div>`;
-                    container.appendChild(card);
-                });
-            }
-
-            // Populate the city suggestions in the datalist
-            function populateCitySuggestions() {
-                const sourceCities = [...new Set(trainData.map(item => item.from_station_city))];
-                const destinationCities = [...new Set(trainData.map(item => item.to_station_city))];
-                
-                const sourceDatalist = document.getElementById("source-cities");
-                const destinationDatalist = document.getElementById("destination-cities");
-                
-                sourceCities.forEach(city => {
-                    const option = document.createElement("option");
-                    option.value = city;
-                    sourceDatalist.appendChild(option);
-                });
-
-                destinationCities.forEach(city => {
-                    const option = document.createElement("option");
-                    option.value = city;
-                    destinationDatalist.appendChild(option);
-                });
-            }
-
-            // Filter trains based on source and destination cities
-            function filterTrains() {
-                const sourceCity = document.getElementById("source-city").value.trim();
-                const destinationCity = document.getElementById("destination-city").value.trim();
-
-                let filteredData = trainData;
-
-                if (sourceCity) {
-                    filteredData = filteredData.filter(train => train.from_station_city.toLowerCase().includes(sourceCity.toLowerCase()));
-                }
-
-                if (destinationCity) {
-                    filteredData = filteredData.filter(train => train.to_station_city.toLowerCase().includes(destinationCity.toLowerCase()));
-                }
-
-                displayTrainData(filteredData);
-            }
-
-            // Call the filter function whenever the input fields are changed
-            document.getElementById("source-city").addEventListener("input", filterTrains);
-            document.getElementById("destination-city").addEventListener("input", filterTrains);
-
-            // Function to filter trains by class (only on the filtered trains by location)
-            function filterTrainsByClass() {
-                const selectedClass = document.getElementById("classDropdown").value;
-
-                // First, apply the location filter
-                let filteredData = trainData;
-                const sourceCity = document.getElementById("source-city").value.trim();
-                const destinationCity = document.getElementById("destination-city").value.trim();
-
-                if (sourceCity) {
-                    filteredData = filteredData.filter(train => train.from_station_city.toLowerCase().includes(sourceCity.toLowerCase()));
-                }
-
-                if (destinationCity) {
-                    filteredData = filteredData.filter(train => train.to_station_city.toLowerCase().includes(destinationCity.toLowerCase()));
-                }
-
-                // Apply class filter only on the already filtered data
-                if (selectedClass) {
-                    filteredData = filteredData.filter(train => train.class === selectedClass);
-                }
-
-                // Display the filtered data
-                displayTrainData(filteredData);
-            }
-
-            // Function to sort trains by price (only on the filtered trains by location)
-            function sortTrainsByPrice() {
-                const sourceCity = document.getElementById("source-city").value.trim();
-                const destinationCity = document.getElementById("destination-city").value.trim();
-
-                // First, apply the location filter
-                let filteredData = trainData;
-
-                if (sourceCity) {
-                    filteredData = filteredData.filter(train => train.from_station_city.toLowerCase().includes(sourceCity.toLowerCase()));
-                }
-
-                if (destinationCity) {
-                    filteredData = filteredData.filter(train => train.to_station_city.toLowerCase().includes(destinationCity.toLowerCase()));
-                }
-
-                // Now, sort the filtered data by price
-                const sortedData = [...filteredData].sort((a, b) => a.price - b.price);
-
-                // Display the sorted data
-                displayTrainData(sortedData);
-            }
-
-        });
+                    }
+                })
+                .catch(err => console.error("Error fetching flight data:", err));    
         
+        });
     </script>
 
     <!-- Footer Section -->
