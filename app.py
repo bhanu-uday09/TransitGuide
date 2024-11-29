@@ -192,11 +192,13 @@ def get_train_data():
             with conn.cursor() as cursor:
                 query = """
                     SELECT train_number, train_name, source_station_code, source_city,
-                           destination_station_code, destination_city, travel_date, ticket_prices
+                           destination_station_code, destination_city, departure_date, arrival_date,
+                           departure_time::TEXT AS departure_time, departure_day, 
+                           arrival_time::TEXT AS arrival_time, arrival_day, travel_duration, ticket_prices
                     FROM TrainDetails
                     WHERE source_station_code = %s
                       AND destination_station_code = %s
-                      AND travel_date = %s
+                      AND departure_date = %s
                 """
                 cursor.execute(query, (source, destination, travel_date))
                 rows = cursor.fetchall()

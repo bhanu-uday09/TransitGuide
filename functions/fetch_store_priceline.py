@@ -16,6 +16,7 @@ airport_df = pd.read_csv('assets/airport_data.csv', usecols=['city', 'airport_co
 airline_data = {
     "6E": "IndiGo",
     "AI": "Air India",
+    "IX": "Air India Express",
     "SG": "SpiceJet",
     "UK": "Vistara",
     "G8": "Go First",
