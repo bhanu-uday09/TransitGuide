@@ -18,7 +18,6 @@ airline_data = {
     "AI": "Air India",
     "IX": "Air India Express",
     "SG": "SpiceJet",
-    "UK": "Vistara",
     "G8": "Go First",
     "I5": "AirAsia India",
     "9I": "Alliance Air",
@@ -152,6 +151,8 @@ def get_priceline_flights(source, destination, formatted_date):
             for segment in segments:
                 airline_code = segment.get("marketingAirline", "N/A")
                 airline_name = airline_data.get(airline_code, "Unknown")
+                if airline_name == "Unknown":
+                    airline_name = "Akasa Air"  # Replace 'Unknown' with 'Akasa Air'
                 date_time_depart = segment.get("departInfo", {}).get("time", {}).get("dateTime", "")
                 date_time_arrival = segment.get("arrivalInfo", {}).get("time", {}).get("dateTime", "")
 
