@@ -155,6 +155,85 @@
         .flight-card .btn-select:hover {
             background-color: #457b9d;
         }
+        /* #loader {
+            text-align: center;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+            max-width: 35rem;
+            height: 30rem;
+            margin: 0 auto;
+        } */
+        #loader {
+            position: fixed; /* Use fixed position to overlay the entire page */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5); /* Semi-transparent background */
+            display: flex; /* Ensure the loader is centered */
+            justify-content: center;
+            align-items: center;
+            z-index: 9999; /* Ensure it is above all elements */
+        }
+
+
+
+        .plane {
+        position: absolute;
+        margin: 0 auto;
+        width: 100%;
+        }
+
+        .plane-img {
+        -webkit-animation: spin 2.5s linear infinite;
+        -moz-animation: spin 2.5s linear infinite;
+        animation: spin 2.5s linear infinite;
+        }
+
+        @-moz-keyframes spin {
+        100% {
+            -moz-transform: rotate(360deg);
+        }
+        }
+
+        @-webkit-keyframes spin {
+        100% {
+            -webkit-transform: rotate(360deg);
+        }
+        }
+
+        @keyframes spin {
+        100% {
+            -webkit-transform: rotate(360deg);
+            transform: rotate(360deg);
+        }
+        }
+
+
+        .earth-wrapper {
+        position: absolute;
+        margin: 0 auto;
+        width: 100%;
+        padding-top: 2.7rem;
+        }
+
+        .earth {
+        width: 160px;
+        height: 160px;
+        background: url("https://zupimages.net/up/19/34/6vlb.gif");
+        border-radius: 100%;
+        background-size: 340px;
+        animation: earthAnim 12s infinite linear;
+        margin: 0 auto;
+        border: 1px solid #CDD1D3;
+        }
+
+        @keyframes earthAnim {
+        0% {background-position-x: 0;}
+        100% {background-position-x: -340px;}
+        }
+
     </style>
 </head>
 <body>
@@ -195,7 +274,7 @@
             <button class="btn" >Get Started</button>
         </div>
         <div class="search-box">
-            <h3 class="text-black">Search Flights</h3>
+            <h4 class="text-black">Search Your Transit</h4>
             <form id="searchForm" method="POST" action="/">
                 <div class="mb-3">
                     <label for="classOfService" class="form-label">Source City</label>
@@ -206,13 +285,6 @@
                     <input type="text" placeholder="To" class="form-control" id="destination_city" name="destination_city" required>
                 </div>
                 <div class="mb-3">
-                    <label for="itineraryType" class="form-label">Itinerary Type</label>
-                    <select class="form-control" id="itineraryType" name="itineraryType" required>
-                        <option value="ONE_WAY">One Way</option>
-                        <option value="ROUND_TRIP">Round Trip</option>
-                    </select>
-                </div>
-                <div class="mb-3">
                     <label for="sortOrder" class="form-label">Sort Order</label>
                     <select class="form-control" id="sortOrder" name="sortOrder">
                         <option value="ML_BEST_VALUE">Best Value</option>
@@ -221,31 +293,44 @@
                     </select>
                 </div>
                 <div class="mb-3">
-                    <label for="classOfService" class="form-label">Class of Service</label>
-                    <select class="form-control" id="classOfService" name="classOfService" required>
-                        <option value="ECONOMY">Economy</option>
-                        <option value="PREMIUM_ECONOMY">Premium Economy</option>
-                        <option value="BUSINESS">Business</option>
-                        <option value="FIRST">First</option>
-                    </select>
-                </div>
-                <div class="mb-3">
                     <label for="classOfService" class="form-label">Journet Date</label>
                     <input type="date" class="form-control" name="journey_date" placeholder="Start" id="journey_date" required>
                 </div>
-                <button type="submit" class="btn w-100" id="searchButton">Search Flights</button>
+                <button type="submit" class="btn w-100" id="searchButton">Search</button>
             </form>
         </div>
+    </div>
+    <div id="loader" class="loader" style="display: none;">
+        <!-- <div class="plane">
+            <img src="https://zupimages.net/up/19/34/4820.gif" class="plane-img">
+        </div> -->
+        <div class="earth-wrapper">
+            <div class="earth"></div>
+        </div>  
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const searchButton = document.getElementById('searchButton');
             const searchForm = document.getElementById('searchForm');
+            const loader = document.getElementById('loader'); // Reference the loader element
+    
+            // Function to show loader
+            function showLoader() {
+                loader.style.display = 'flex'; // Ensure loader is visible
+            }
+    
+            // Function to hide loader
+            function hideLoader() {
+                loader.style.display = 'none'; // Hide the loader
+            }
     
             searchForm.addEventListener('submit', function (event) {
                 // Prevent default form submission behavior
                 event.preventDefault();
+    
+                // Show the loader
+                showLoader();
     
                 // Gather form data
                 const sourceCity = document.getElementById('source_city').value;
@@ -275,17 +360,20 @@
                         window.location.href = `/results?source_city=${encodeURIComponent(sourceCity)}&destination_city=${encodeURIComponent(destinationCity)}&journey_date=${encodeURIComponent(journeyDate)}`;
                     });
     
-                    // Optionally, automatically redirect
+                    // Automatically redirect
                     searchButton.click();
                 })
                 .catch(error => {
                     console.error(error);
                     alert('An error occurred during form submission.');
+                })
+                .finally(() => {
+                    // Always hide the loader after processing
+                    hideLoader();
                 });
             });
         });
     </script>
-
 
 
     <!-- Footer Section -->
