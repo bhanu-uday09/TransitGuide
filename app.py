@@ -143,6 +143,22 @@ def fetch_railway_station_code():
         return jsonify({'city_name': user_city, 'railway_station_code': station_code}), 200
     return jsonify({'error': f'No matching railway station code found for "{user_city}"'}), 404
 
+# Function to get the city name from the airport code
+def get_city_from_airport_code(airport_code):
+    result = airport_df[airport_df['airport_code'] == airport_code]['city']
+    return result.iloc[0] if not result.empty else None
+
+@app.route('/api/getCityFromAirportCode', methods=['GET'])
+def fetch_city_from_airport_code():
+    airport_code = request.args.get('airport_code', '').strip().upper()
+    if not airport_code:
+        return jsonify({'error': 'Airport code is required'}), 400
+
+    city_name = get_city_from_airport_code(airport_code)
+    if city_name:
+        return jsonify({'airport_code': airport_code, 'city_name': city_name}), 200
+    return jsonify({'error': f'No matching city found for airport code "{airport_code}"'}), 404
+
 @app.route('/api/flights', methods=['GET'])
 def fetch_flights():
     source = request.args.get('source_city', '').strip()

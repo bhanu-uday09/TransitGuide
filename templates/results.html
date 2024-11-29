@@ -123,7 +123,7 @@
         }
 
         .train-number {
-            font-size: 14px;
+            font-size: 16px;
             color: #666;
         }
 
@@ -207,14 +207,61 @@
         .flight-details {
             display: flex;
             flex-direction: column;
+            align-items: center; /* Center text horizontally */
+            justify-content: center; /* Center text vertically */
+            text-align: center; /* Ensure text is centered */
+            flex: 1;
         }
 
         .flight-times {
             display: flex;
-            justify-content: space-between;
-            font-size: 16px;
+            justify-content: space-between; /* Ensures proper spacing between times */
+            align-items: center; /* Vertically aligns elements */
+            gap: 16px; /* Adds spacing between departure, duration, and arrival */
+            font-size: 18px; /* Adjust the font size */
+            color: #333;
+        }
+
+        .time-details {
+            display: flex;
+            align-items: center; /* Vertically centers the elements */
+            justify-content: center;
+            gap: 8px; /* Space between departure, duration, and arrival */
             font-weight: bold;
         }
+
+        .departure-time,
+        .arrival-time {
+            font-size: 20px; /* Make the times larger */
+            font-weight: bold;
+        }
+
+        .duration {
+            font-size: 16px;
+            color: #007bff; /* Use muted color for duration */
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .duration::before {
+            content: "";
+            display: inline-block;
+            width: 50px; /* Line width */
+            height: 1px; /* Line height */
+            background-color: gray; /* Line color */
+            margin-right: 4px; /* Spacing between the line and text */
+        }
+
+        .duration::after {
+            content: "";
+            display: inline-block;
+            width: 50px; /* Line width */
+            height: 1px; /* Line height */
+            background-color: gray; /* Line color */
+            margin-left: 4px; /* Spacing between the line and text */
+        }
+
 
         .flight-duration {
             font-size: 14px;
@@ -223,10 +270,30 @@
 
         .flight-locations {
             display: flex;
-            justify-content: space-between;
-            margin-top: 8px;
+            align-items: center; /* Vertically center all elements */
+            justify-content: space-between; /* Add spacing between departure, separator, and arrival */
+            text-align: center;
+            gap: 36px; /* Add spacing between sections */
+        }
+
+        .flight-info-separator {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             font-size: 14px;
-            color: #666;
+            color: #666; /* Muted text for the separator info */
+        }
+
+        .flight-info-separator .flight-duration {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333; /* Highlight duration */
+        }
+
+        .flight-info-separator .direct-indicator {
+            font-size: 12px;
+            color: green; /* Use green to indicate "Direct" */
         }
 
         .flight-price {
@@ -241,16 +308,6 @@
             font-size: 20px;
             font-weight: bold;
             color: #333;
-        }
-
-        .flight-price .btn {
-            margin-top: 8px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            padding: 8px 16px;
-            cursor: pointer;
         }
 
         .flight-price .btn:hover {
@@ -459,7 +516,7 @@
 
             fetch(flightAPI)
                 .then(response => response.json())
-                .then(data => {
+                .then(async (data) => {
                     console.log("Flight Data:", data); // Debugging
 
                     const flightList = document.getElementById("flight-list");
@@ -470,44 +527,66 @@
                     if (flights.length === 0) {
                         flightList.innerHTML = "<p>No flight data available</p>";
                     } else {
-                        flights.forEach(flight => {
+                        // Process each flight asynchronously to fetch city names
+                        for (const flight of flights) {
+                            // Fetch source and destination city names using the API
+                            const srcName = await fetch(`/api/getCityFromAirportCode?airport_code=${flight.source_city}`)
+                                .then(res => res.json())
+                                .then(res => res.city_name || "Unknown City")
+                                .catch(() => "Unknown City");
+
+                            const destName = await fetch(`/api/getCityFromAirportCode?airport_code=${flight.destination_city}`)
+                                .then(res => res.json())
+                                .then(res => res.city_name || "Unknown City")
+                                .catch(() => "Unknown City");
+
                             // Format departure and arrival timestamps
-                            const airlineLogo = getAirlineLogo(flight.airline);
                             const departure = formatDateTime(flight.departure_timestamp);
                             const arrival = formatDateTime(flight.arrival_timestamp);
-                            const duration = calculateDuration(departure, arrival);
+
+                            // Calculate flight duration
+                            const departureTimestamp = new Date(flight.departure_timestamp).getTime();
+                            const arrivalTimestamp = new Date(flight.arrival_timestamp).getTime();
+                            const duration = calculateDuration(departureTimestamp, arrivalTimestamp);
 
                             // Create the flight card
                             const card = `
                                 <div class="flight-card">
                                     <div class="flight-info">
                                         <div class="flight-logo">
-                                            <img src="${airlineLogo}" alt="${flight.airline}" />
+                                            <img src="${getAirlineLogo(flight.airline)}" alt="${flight.airline}" />
                                         </div>
                                         <div class="flight-details">
                                             <div class="flight-times">
-                                                <span class="departure-time">${departure.time}</span>
-                                                <span class="flight-duration">${flight.duration || "N/A"}</span>
-                                                <span class="arrival-time">${arrival.time}</span>
+                                                <div class="time-details">
+                                                    <span class="departure-time">${departure.time}</span>
+                                                    <span class="duration">${duration}</span>
+                                                    <span class="arrival-time">${arrival.time}</span>
+                                                </div>
                                             </div>
                                             <div class="flight-locations">
-                                                <span class="departure-city">${flight.source_city || "N/A"} (${flight.source_code || "N/A"})</span>
-                                                <span class="arrival-city">${flight.destination_city || "N/A"} (${flight.destination_code || "N/A"})</span>
+                                                <div class="departure-city">
+                                                    <span>${srcName} (${flight.source_city})</span>
+                                                </div>
+                                                <div class="flight-info-separator">
+                                                    <span class="direct-indicator">Direct</span>
+                                                </div>
+                                                <div class="arrival-city">
+                                                    <span>${destName} (${flight.destination_city})</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                     <div class="flight-price">
-                                        <span class="price">₹${flight.fare || "N/A"}</span>
-                                        <button class="btn btn-select">Select</button>
+                                        <span class="price">${flight.fare || "N/A"}</span>
                                     </div>
                                 </div>
                             `;
                             flightList.insertAdjacentHTML("beforeend", card);
-                        });
+                        }
                     }
                 })
                 .catch(err => console.error("Error fetching flight data:", err));
-
 
             // Calculate flight duration
             function calculateDuration(departureTimestamp, arrivalTimestamp) {
@@ -517,17 +596,58 @@
                 const minutes = durationMinutes % 60;
                 return `${hours}h ${minutes}m`;
             }
-            
+
             // Helper function to format timestamps
             function formatDateTime(timestamp) {
                 const date = new Date(timestamp);
-                const options = { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false };
                 return {
                     day: date.toLocaleDateString('en-US', { weekday: 'short' }),
                     date: date.toLocaleDateString('en-US', { day: '2-digit', month: 'short' }),
                     time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
                 };
             }
+
+function getAirlineLogo(airline) {
+                const airlineDomains = {
+                    "IndiGo": "goindigo.in",
+                    "Air India": "airindia.in",
+                    "SpiceJet": "spicejet.com",
+                    "Vistara": "airvistara.com",
+                    "GoAir": "goair.in",
+                    "Emirates": "emirates.com",
+                    "Qatar Airways": "qatarairways.com"
+                };
+
+                const domain = airlineDomains[airline];
+                if (domain) {
+                    return `https://logo.clearbit.com/${domain}`;
+                } else {
+                    // Fallback logo if the airline is not in the mapping
+                    return "https://via.placeholder.com/50?text=No+Logo";
+                }
+            }
+
+            
+            // Event Listener for Airline Filter
+            document.getElementById("airlineDropdown").addEventListener("change", function () {
+                const selectedAirline = this.value;
+                const filteredFlights = flightData.flights.filter(flight => flight.airline === selectedAirline);
+                displayFlightData({ flights: filteredFlights });
+            });
+
+            // Event Listener for Flight Sort by Price or Duration
+            document.getElementById("sortDropdown").addEventListener("change", function () {
+                const sortBy = this.value;
+                const sortedFlights = [...flightData.flights].sort((a, b) => {
+                    if (sortBy === "Cheapest") {
+                        return a.fare - b.fare;
+                    } else if (sortBy === "Quickest") {
+                        return (a.duration || 0) - (b.duration || 0);
+                    }
+                    return 0;
+                });
+                displayFlightData({ flights: sortedFlights });
+            });
 
             async function displayTrainData(data) {
                 const trainList = document.getElementById("train-list");
@@ -594,65 +714,7 @@
                 });
             }
             
-            
-            
-            function getAirlineLogo(airline) {
-                const airlineDomains = {
-                    "IndiGo": "goindigo.in",
-                    "Air India": "airindia.in",
-                    "SpiceJet": "spicejet.com",
-                    "Vistara": "airvistara.com",
-                    "GoAir": "goair.in",
-                    "Emirates": "emirates.com",
-                    "Qatar Airways": "qatarairways.com"
-                };
-
-                const domain = airlineDomains[airline];
-                if (domain) {
-                    return `https://logo.clearbit.com/${domain}`;
-                } else {
-                    // Fallback logo if the airline is not in the mapping
-                    return "https://via.placeholder.com/50?text=No+Logo";
-                }
-            }
-
-            // Event Listener for Train Class Filter
-            document.getElementById("classDropdown").addEventListener("change", function () {
-                const selectedClass = this.value;
-                const filteredTrains = trainData.train_data.filter(train => train.ticket_prices[selectedClass] !== undefined);
-                displayTrainData({ train_data: filteredTrains });
-            });
-
-            // Event Listener for Train Sort by Price
-            document.getElementById("sortPriceButton").addEventListener("click", function () {
-                const sortedTrains = [...trainData.train_data].sort((a, b) => {
-                    const aPrice = Math.min(...Object.values(a.ticket_prices));
-                    const bPrice = Math.min(...Object.values(b.ticket_prices));
-                    return aPrice - bPrice;
-                });
-                displayTrainData({ train_data: sortedTrains });
-            });
-
-            // Event Listener for Airline Filter
-            document.getElementById("airlineDropdown").addEventListener("change", function () {
-                const selectedAirline = this.value;
-                const filteredFlights = flightData.flights.filter(flight => flight.airline === selectedAirline);
-                displayFlightData({ flights: filteredFlights });
-            });
-
-            // Event Listener for Flight Sort by Price or Duration
-            document.getElementById("sortDropdown").addEventListener("change", function () {
-                const sortBy = this.value;
-                const sortedFlights = [...flightData.flights].sort((a, b) => {
-                    if (sortBy === "Cheapest") {
-                        return a.fare - b.fare;
-                    } else if (sortBy === "Quickest") {
-                        return (a.duration || 0) - (b.duration || 0);
-                    }
-                    return 0;
-                });
-                displayFlightData({ flights: sortedFlights });
-            });
+        
         });
     </script>
 
