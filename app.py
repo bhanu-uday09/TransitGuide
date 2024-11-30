@@ -10,7 +10,8 @@ from functions import (
     fetch_store_priceline,
     fetch_store_skyscanner,
     fetch_store_train,
-    fetch_store_tripadvisor
+    fetch_store_tripadvisor,
+    fetch_store_buses
 )
 
 app = Flask(__name__)
@@ -102,20 +103,43 @@ def chatbot():
 # Load airport data
 airport_df = pd.read_csv('assets/airport_data.csv', usecols=['city', 'airport_code', 'railway_station_code'])
 
-def get_closest_city(user_city):
+def get_close_city(user_city):
     city_list = airport_df['city'].tolist()
     result = process.extractOne(user_city.strip().title(), city_list, scorer=fuzz.ratio)
     return result[0] if result and result[1] >= 50 else None
 
+@app.route('/api/getClosestCity', methods=['GET'])
+def get_closest_city():
+    """
+    Returns the closest matching city name from a predefined list based on a user's input city.
+    """
+    # Extract the 'user_city' parameter from the query string
+    user_city = request.args.get('user_city', '').strip().title()
+
+    if not user_city:
+        return jsonify({"error": "user_city parameter is required"}), 400
+
+    # Get the list of cities from the dataframe
+    city_list = airport_df['city'].tolist()
+
+    # Perform fuzzy matching
+    result = process.extractOne(user_city, city_list, scorer=fuzz.ratio)
+
+    # Check if a result was found and the score is acceptable
+    if result and result[1] >= 50:
+        return jsonify({"closest_city": result[0]}), 200
+    else:
+        return jsonify({"error": "No closely matching city found"}), 404
+    
 def get_airport_code(user_city):
-    closest_city = get_closest_city(user_city)
+    closest_city = get_close_city(user_city)
     if closest_city:
         result = airport_df[airport_df['city'] == closest_city]['airport_code']
         return result.iloc[0] if not result.empty else None
     return None
 
 def get_railway_station_code(user_city):
-    closest_city = get_closest_city(user_city)
+    closest_city = get_close_city(user_city)
     if closest_city:
         result = airport_df[airport_df['city'] == closest_city]['railway_station_code']
         return result.iloc[0] if not result.empty else None
@@ -176,7 +200,7 @@ def fetch_flights():
                         arrival_timestamp, fare, airline
                     FROM global_flights
                     WHERE source_city = %s AND destination_city = %s AND DATE(departure_timestamp) = %s
-                    ORDER BY fare ASC
+                    ORDER BY departure_timestamp ASC
                     LIMIT 50;
                 """
                 cursor.execute(query, (source, destination, journey_date))
@@ -187,6 +211,35 @@ def fetch_flights():
     except Exception as e:
         print(f"Error fetching flights: {e}")
         return jsonify({"error": "An error occurred while fetching flight data."}), 500
+
+@app.route('/api/buses', methods=['GET'])
+def fetch_buses():
+    source = request.args.get('source_city', '').strip()
+    destination = request.args.get('destination_city', '').strip()
+    journey_date = request.args.get('journey_date', '').strip()
+
+    if not source or not destination or not journey_date:
+        return jsonify({"error": "Source city, destination city, and journey date are required"}), 400
+
+    try:
+        with get_bus_db_connection() as conn:  # Use a function to get the bus database connection
+            with conn.cursor() as cursor:
+                query = """
+                    SELECT id AS bus_id, source_city, destination_city, departure_time,
+                        arrival_time, fare, bus_type
+                    FROM buses
+                    WHERE source_city = %s AND destination_city = %s AND DATE(departure_time) = %s
+                    ORDER BY departure_time ASC
+                    LIMIT 50;
+                """
+                cursor.execute(query, (source, destination, journey_date))
+                rows = cursor.fetchall()
+                columns = [desc[0] for desc in cursor.description]
+                data = [dict(zip(columns, row)) for row in rows]
+        return jsonify(data), 200
+    except Exception as e:
+        print(f"Error fetching buses: {e}")
+        return jsonify({"error": "An error occurred while fetching bus data."}), 500
 
 @app.route('/api/getTrainData', methods=['GET'])
 def get_train_data():
@@ -266,6 +319,7 @@ def index():
         dst_air_code = get_airport_code(destination_city)
         dst_stn_code = get_railway_station_code(destination_city)
         journey_date = request.form.get("journey_date", "").strip()
+        
 
         if not source_city or not destination_city or not journey_date:
             flash("All fields are required. Please fill out the form completely.")
@@ -283,8 +337,13 @@ def index():
             flash(f"Train data for {source_city} to {destination_city} on {journey_date} is already available.")
             return redirect("/results")
         
+        if get_matching_buses(source_city, destination_city, journey_date):
+            flash(f"Train data for {source_city} to {destination_city} on {journey_date} is already available.")
+            return redirect("/results")
+        
         try:
             fetch_store_train.fetch_train_details(sc_stn_code, dst_stn_code, journey_date)
+            fetch_store_buses.fetch_and_insert_bus_data(source_city, destination_city, journey_date)
             fetch_store_priceline.get_priceline_flights(src_air_code, dst_air_code, journey_date)
             fetch_store_skyscanner.get_skyScanner_flights(src_air_code, dst_air_code, journey_date)
             fetch_store_tripadvisor.get_tripadvisor_flights(src_air_code, dst_air_code, journey_date)
@@ -364,6 +423,42 @@ def get_matching_trains(source_station_code, destination_station_code, travel_da
                 return [dict(zip(columns, row)) for row in rows]
     except Exception as e:
         print(f"Error retrieving train data: {e}")
+        return []
+
+def get_matching_buses(source_city, destination_city, journey_date):
+    """
+    Fetch all matching bus data from the buses table for the given parameters.
+
+    Args:
+        source_city (str): The source city.
+        destination_city (str): The destination city.
+        journey_date (str): The journey date in YYYY-MM-DD format.
+
+    Returns:
+        list: A list of dictionaries representing the bus data. Returns an empty list if no buses are found.
+    """
+    try:
+        with get_bus_db_connection() as conn:  # Use a function to get the bus database connection
+            with conn.cursor() as cursor:
+                query = """
+                    SELECT id AS bus_id, source_city, destination_city, 
+                           departure_time, arrival_time, fare, bus_type
+                    FROM buses
+                    WHERE source_city = %s
+                    AND destination_city = %s
+                    AND DATE(departure_time) = %s
+                    ORDER BY fare ASC;
+                """
+                cursor.execute(query, (source_city, destination_city, journey_date))
+                rows = cursor.fetchall()
+
+                # Convert rows to a list of dictionaries
+                columns = [desc[0] for desc in cursor.description]
+                buses = [dict(zip(columns, row)) for row in rows]
+
+                return buses
+    except Exception as e:
+        print(f"Error fetching bus data from database: {e}")
         return []
 
 if __name__ == "__main__":

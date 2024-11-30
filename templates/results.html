@@ -564,12 +564,30 @@
                     return null;
                 }
             }
+            // Function to fetch the closest city using the getClosestCity API
+            async function fetchClosestCity(apiUrl, userCity) {
+                try {
+                    const response = await fetch(`${apiUrl}?user_city=${encodeURIComponent(userCity)}`);
+                    const data = await response.json();
+                    if (response.ok) {
+                        return data.closest_city; // Return the closest city from the response
+                    } else {
+                        console.error(data.error || "No matching city found");
+                        return null;
+                    }
+                } catch (error) {
+                    console.error("Error fetching closest city:", error);
+                    return null;
+                }
+            }
 
             // Use `await` to resolve the Promises returned by `fetchCode`
             const sourceAirportCode = await fetchCode('/api/getAirportCode', sourceCity);
             const destinationAirportCode = await fetchCode('/api/getAirportCode', destinationCity);
             const sourceStationCode = await fetchCode('/api/getRailwayStationCode', sourceCity);
             const destinationStationCode = await fetchCode('/api/getRailwayStationCode', destinationCity);
+            const srcfullname = await fetchClosestCity('/api/getClosestCity', sourceCity);
+            const destfullname = await fetchClosestCity('/api/getClosestCity', destinationCity);
 
             // Log resolved values to the console
             console.log("Source Airport Code:", sourceAirportCode);
@@ -580,7 +598,63 @@
             // Construct dynamic API URLs
             const trainAPI = `/api/getTrainData?source=${sourceStationCode}&destination=${destinationStationCode}&date=${journeyDate}`;
             const flightAPI = `/api/flights?source_city=${sourceAirportCode}&destination_city=${destinationAirportCode}&journey_date=${journeyDate}`;
+            const busAPI = `/api/buses?source_city=${srcfullname}&destination_city=${destfullname}&journey_date=${journeyDate}`;
 
+            fetch(busAPI)
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Bus Data:", data); // Debugging
+                    displayBusData(data);
+                })
+                .catch(err => console.error("Error fetching bus data:", err));
+
+            // Function to display bus data
+            async function displayBusData(data) {
+                const busList = document.getElementById("bus-list");
+                busList.innerHTML = ""; // Clear previous content
+
+                if (!data || data.length === 0) {
+                    busList.innerHTML = "<p>No bus data available</p>";
+                    return;
+                }
+
+                data.forEach(bus => {
+                    const departureTime = new Date(bus.departure_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    const arrivalTime = new Date(bus.arrival_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    const travelDuration = bus.total_travel_time || "N/A";
+                    const fare = bus.fare ? `₹${bus.fare}` : "N/A";
+
+                    const card = `
+                        <div class="train-card">
+                            <div class="train-header">
+                                <h5 class="train-title">${bus.bus_type || "Unknown Bus Type"}</h5>
+                                <div class="train-days">Depart on: ${new Date(bus.departure_time).toLocaleDateString()}</div>
+                            </div>
+                            <div class="train-info">
+                                <div class="departure">
+                                    <span>${bus.source_city || "N/A"}</span>
+                                    <span class="departure-time">${departureTime}</span>
+                                </div>
+                                <div class="time-details">
+                                    <span class="duration">${travelDuration}</span>
+                                </div>
+                                <div class="arrival">
+                                    <span>${bus.destination_city || "N/A"}</span>
+                                    <span class="arrival-time">${arrivalTime}</span>
+                                </div>
+                            </div>
+                            <div class="ticket-prices">
+                                <div class="class-card">
+                                    <div class="class-type">Fare</div>
+                                    <div class="class-price">${fare}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    busList.insertAdjacentHTML("beforeend", card);
+                });
+            }
             // Fetch Train Data
             fetch(trainAPI)
                 .then(response => response.json())
