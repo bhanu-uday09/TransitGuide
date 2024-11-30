@@ -337,6 +337,7 @@
             border-radius: 4px; 
             margin-right: 8px; 
         }
+        
     </style>
 </head>
 
@@ -499,15 +500,15 @@
                     <div class="results-title" style="display: flex; align-items: center; ">
                     
                         <h4 style="color: black;margin-left: 20px; margin-right: 10px; font-size: 19px; margin-bottom: -5px; font-family: Georgia, 'Times New Roman', Times, serif; align-content: baseline;">
-                            <img src="https://e7.pngegg.com/pngimages/750/288/png-clipart-rail-transport-train-station-singrauli-railway-station-train-public-transport-train-station-thumbnail.png" 
-                                 alt="Train Logo" style="width: 30px; height: 30px; margin-right: 10px; vertical-align: middle;">
-                            Available Busses
+                            <i class="fas fa-bus"></i>Available Busses
                         </h4>
-                        <button id="sortTrainByDuration" class="btn btn-floating" style="font-size: 19px; margin-right: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                        <button id="sortBusByDuration" class="btn btn-floating" style="font-size: 19px; margin-right: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">
                             <i class="fas fa-clock"></i> Sort by Travel Duration
                         </button>
-                        <button id="viewAllTrains" class="btn btn-secondary" style="font-size: 19px; font-family: Georgia, 'Times New Roman', Times, serif;">
-                            <i class="fas fa-bus"></i> View Trains
+                        <button id="viewAllTrains" class="btn btn-floating" style="font-size: 19px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                            <img src="https://e7.pngegg.com/pngimages/750/288/png-clipart-rail-transport-train-station-singrauli-railway-station-train-public-transport-train-station-thumbnail.png" 
+                                 alt="Train Logo" style="width: 30px; height: 30px; margin-right: 10px; vertical-align: middle;">
+                             View Trains
                         </button>
                     </div>
                     
@@ -598,17 +599,21 @@
             // Construct dynamic API URLs
             const trainAPI = `/api/getTrainData?source=${sourceStationCode}&destination=${destinationStationCode}&date=${journeyDate}`;
             const flightAPI = `/api/flights?source_city=${sourceAirportCode}&destination_city=${destinationAirportCode}&journey_date=${journeyDate}`;
-            const busAPI = `/api/buses?source_city=${srcfullname}&destination_city=${destfullname}&journey_date=${journeyDate}`;
+            let busData = []; // Store bus data globally for sorting
 
-            fetch(busAPI)
-                .then(response => response.json())
-                .then(data => {
+            async function fetchAndDisplayBusData() {
+                const busAPI = `/api/buses?source_city=${srcfullname}&destination_city=${destfullname}&journey_date=${journeyDate}`;
+                try {
+                    const response = await fetch(busAPI);
+                    const data = await response.json();
                     console.log("Bus Data:", data); // Debugging
-                    displayBusData(data);
-                })
-                .catch(err => console.error("Error fetching bus data:", err));
+                    busData = data; // Save the bus data globally
+                    displayBusData(data); // Display bus data
+                } catch (err) {
+                    console.error("Error fetching bus data:", err);
+                }
+            }
 
-            // Function to display bus data
             async function displayBusData(data) {
                 const busList = document.getElementById("bus-list");
                 busList.innerHTML = ""; // Clear previous content
@@ -618,17 +623,25 @@
                     return;
                 }
 
-                data.forEach(bus => {
-                    const departureTime = new Date(bus.departure_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                    const arrivalTime = new Date(bus.arrival_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                data.forEach((bus) => {
+                    const departureTime = new Date(bus.departure_time).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                    });
+                    const arrivalTime = new Date(bus.arrival_time).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                    });
                     const travelDuration = bus.total_travel_time || "N/A";
                     const fare = bus.fare ? `₹${bus.fare}` : "N/A";
+                    const departureDate = new Date(bus.departure_time);
+                    const formattedDate = `${departureDate.getDate().toString().padStart(2, '0')}/${(departureDate.getMonth() + 1).toString().padStart(2, '0')}/${departureDate.getFullYear()}`;
 
                     const card = `
                         <div class="train-card">
                             <div class="train-header">
                                 <h5 class="train-title">${bus.bus_type || "Unknown Bus Type"}</h5>
-                                <div class="train-days">Depart on: ${new Date(bus.departure_time).toLocaleDateString()}</div>
+                                <div class="train-days">Depart on: ${formattedDate}</div>
                             </div>
                             <div class="train-info">
                                 <div class="departure">
@@ -651,10 +664,36 @@
                             </div>
                         </div>
                     `;
-
                     busList.insertAdjacentHTML("beforeend", card);
                 });
             }
+
+            // Sort button functionality
+            document.getElementById("sortBusByDuration").addEventListener("click", () => {
+                if (!busData || busData.length === 0) return;
+
+                // Sort bus data by travel duration
+                busData.sort((a, b) => {
+                    const durationA = getMinutesFromDuration(a.total_travel_time);
+                    const durationB = getMinutesFromDuration(b.total_travel_time);
+                    return durationA - durationB;
+                });
+
+                // Re-render sorted bus data
+                displayBusData(busData);
+            });
+
+            // Helper function to parse duration into minutes
+            function getMinutesFromDuration(durationText) {
+                if (!durationText) return Number.MAX_SAFE_INTEGER; // If duration is not available
+                const [hours, minutes] = durationText.match(/\d+/g).map(Number);
+                return hours * 60 + minutes; // Convert hours and minutes to total minutes
+            }
+
+            // Fetch and display bus data on page load
+            fetchAndDisplayBusData();
+
+            
             // Fetch Train Data
             fetch(trainAPI)
                 .then(response => response.json())
@@ -822,8 +861,22 @@
 
             async function displayTrainData(data) {
                 const trainList = document.getElementById("train-list");
+                const trainResults = document.getElementById("train-results");
+                const busResults = document.getElementById("bus-results");
+
                 trainList.innerHTML = ""; // Clear existing content
 
+                // Check if train data exists and is not empty
+                if (!data || !data.train_data || data.train_data.length === 0) {
+                    // If no trains, hide the train section and show the flight section
+                    trainResults.style.display = "none";
+                    busResults.style.display = "block"; // Make flights visible
+                    return;
+                }
+
+                // If train data exists, make the train section visible
+                trainResults.style.display = "block";
+                busResults.style.display = "none";
                 // Check if train data exists and is not empty
                 if (!data || !data.train_data || data.train_data.length === 0) {
                     trainList.innerHTML = "<p>No train data available</p>";

@@ -226,7 +226,7 @@ def fetch_buses():
             with conn.cursor() as cursor:
                 query = """
                     SELECT id AS bus_id, source_city, destination_city, departure_time,
-                        arrival_time, fare, bus_type
+                        arrival_time, total_travel_time, fare, bus_type
                     FROM buses
                     WHERE source_city = %s AND destination_city = %s AND DATE(departure_time) = %s
                     ORDER BY departure_time ASC
