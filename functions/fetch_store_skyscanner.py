@@ -106,7 +106,7 @@ def get_skyScanner_flights(source, destination, travel_date):
     conn = http.client.HTTPSConnection("sky-scanner3.p.rapidapi.com")
     
     headers = {
-        'x-rapidapi-key': "3254875c10mshf948cf35f09d589p1c7181jsn2faeb668170d",
+        'x-rapidapi-key': "8523b3d236msh567ad42fd95c905p1bcbb8jsn1aa82f1b392e",
         'x-rapidapi-host': "sky-scanner3.p.rapidapi.com"
     }
     

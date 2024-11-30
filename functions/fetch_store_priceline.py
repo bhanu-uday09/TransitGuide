@@ -82,7 +82,7 @@ def get_priceline_flights(source, destination, formatted_date):
     # API connection setup
     conn = http.client.HTTPSConnection("priceline-com2.p.rapidapi.com")
     headers = {
-        'x-rapidapi-key': "3254875c10mshf948cf35f09d589p1c7181jsn2faeb668170d",
+        'x-rapidapi-key': "8523b3d236msh567ad42fd95c905p1bcbb8jsn1aa82f1b392e",
         'x-rapidapi-host': "priceline-com2.p.rapidapi.com"
     }
     endpoint = f"/flights/search-one-way?originAirportCode={source}&destinationAirportCode={destination}&departureDate={formatted_date}&numOfStops=0"

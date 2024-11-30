@@ -7,10 +7,11 @@ import psycopg2
 def get_postgres_connection():
     try:
         connection = psycopg2.connect(
-            host="localhost",
+            host="192.168.42.185",
             database="TrainDB",
             user="postgres",
-            password="0000"
+            password="root",
+            port="5432"
         )
         return connection
     except Exception as e:
